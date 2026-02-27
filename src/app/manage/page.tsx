@@ -6,11 +6,16 @@ import {
     FileText,
     MessageSquare,
     BarChart3,
-    X,
     ChevronLeft,
     ChevronRight,
     Edit2,
-    CheckCircle2
+    CheckCircle2,
+    Search,
+    ChevronDown,
+    Globe,
+    BookOpen,
+    PlayCircle,
+    X
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -126,6 +131,7 @@ export default function ManageContent() {
         title: "",
         description: "",
     });
+    const [isCityOpen, setIsCityOpen] = useState(false);
 
     // Dynamic steps configuration
     const steps = [
@@ -144,10 +150,6 @@ export default function ManageContent() {
 
     const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
-    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
-    };
 
     const handleStepChange = (stepId: number) => {
         if (stepId === currentStep) return;
@@ -267,127 +269,156 @@ export default function ManageContent() {
                                 </div>
                                 <div className="mt-20 pt-10 border-t border-slate-50 text-slate-500 text-sm space-y-1">
                                     <p>• 안내에 따라 콘텐츠 내용을 정확하게 설명해 주세요.</p>
-                                    <p>• 콘텐츠 제작이 완료되면, 승인을 위한 심사가 진행됩니다.</p>
+                                    <p>승인을 위한 심사가 진행됩니다.</p>
                                 </div>
                             </div>
 
-                            {/* Step Content: Step 1 (Simplified for 3 items) */}
-                            <div className="bg-white rounded-[40px] border border-surface-border shadow-sm p-12 space-y-12 mb-10">
+                            {/* Step Content: Step 1 (Premium UI Overhaul) */}
+                            <div className="space-y-8 mb-32">
                                 {currentStep === 1 && (
-                                    <div className="space-y-12 animate-in fade-in slide-in-from-right-4 duration-500">
-                                        {/* 1. 콘텐츠 유형 */}
-                                        <div className="space-y-6">
-                                            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                                                <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs">2</div>
-                                                콘텐츠 유형*
-                                                <span className="text-slate-400 text-sm font-normal ml-2">택 1</span>
-                                            </h3>
-                                            <div className="flex gap-10 pl-9">
-                                                <label className="flex items-center gap-3 cursor-pointer group">
-                                                    <div className={`w-6 h-6 border-2 rounded flex items-center justify-center transition-all ${formData.contentType === 'electronic_book' ? "bg-primary border-primary" : "border-slate-200 group-hover:border-primary"
-                                                        }`}>
-                                                        {formData.contentType === 'electronic_book' && <div className="w-2 h-2 bg-white rounded-sm" />}
-                                                    </div>
-                                                    <input
-                                                        type="radio" className="hidden"
-                                                        name="contentType" value="electronic_book"
-                                                        checked={formData.contentType === 'electronic_book'}
-                                                        onChange={(e) => setFormData(prev => ({ ...prev, contentType: e.target.value }))}
-                                                    />
-                                                    <span className="text-lg font-medium text-slate-700">전자책</span>
-                                                </label>
-                                                <label className="flex items-center gap-3 cursor-pointer group">
-                                                    <div className={`w-6 h-6 border-2 rounded flex items-center justify-center transition-all ${formData.contentType === 'audio_video' ? "bg-primary border-primary" : "border-slate-200 group-hover:border-primary"
-                                                        }`}>
-                                                        {formData.contentType === 'audio_video' && <div className="w-2 h-2 bg-white rounded-sm" />}
-                                                    </div>
-                                                    <input
-                                                        type="radio" className="hidden"
-                                                        name="contentType" value="audio_video"
-                                                        checked={formData.contentType === 'audio_video'}
-                                                        onChange={(e) => setFormData(prev => ({ ...prev, contentType: e.target.value }))}
-                                                    />
-                                                    <span className="text-lg font-medium text-slate-700">오디오 / 비디오</span>
-                                                </label>
+                                    <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                                        {/* 1. 콘텐츠 유형 Selection Tiles */}
+                                        <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-8">
+                                            <div className="flex items-center justify-between">
+                                                <h3 className="text-xl font-bold text-slate-900">콘텐츠 유형*</h3>
+                                                <span className="text-slate-400 text-sm font-medium">하나를 선택해 주세요</span>
                                             </div>
-                                        </div>
-
-                                        <div className="h-px bg-slate-50 w-full" />
-
-                                        {/* 2. 카테고리 리스트 */}
-                                        <div className="space-y-6">
-                                            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                                                <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs">6</div>
-                                                카테고리*
-                                                <span className="text-slate-400 text-sm font-normal ml-2">택 1</span>
-                                            </h3>
-                                            <div className="grid grid-cols-1 gap-4 pl-9">
+                                            <div className="grid grid-cols-2 gap-6">
                                                 {[
-                                                    { id: 'attraction', label: '명소', desc: '세비야 대성당 투어, 알함브라 궁전 투어' },
-                                                    { id: 'city_tour', label: '시티투어', desc: '가우디 반나절 투어, 바르샤바 구시가지 워킹투어' },
-                                                    { id: 'story', label: '여행이야기', desc: '유럽 건축사의 모든 것, 그리스 신화 한방에 끝내기' },
-                                                    { id: 'guidebook', label: '가이드북', desc: '파리 리얼 가이드북, 비엔나 포켓 가이드북' },
-                                                    { id: 'museum', label: '미술관 / 박물관', desc: '루브르 박물관 투어, 오르세 미술관 투어' }
-                                                ].map((cat) => (
-                                                    <label key={cat.id} className="flex items-start gap-4 cursor-pointer group p-3 hover:bg-slate-50 rounded-2xl transition-colors">
-                                                        <div className={`w-6 h-6 mt-1 border-2 rounded flex items-center justify-center transition-all ${formData.category === cat.id ? "bg-primary border-primary" : "border-slate-200 group-hover:border-primary"
-                                                            }`}>
-                                                            {formData.category === cat.id && <div className="w-2 h-2 bg-white rounded-sm" />}
+                                                    { id: 'electronic_book', label: '전자책', desc: 'PDF, ePub 형식의 텍스트 기반 콘텐츠', icon: BookOpen },
+                                                    { id: 'audio_video', label: '오디오 / 비디오', desc: 'MP3, MP4 형식의 멀티미디어 콘텐츠', icon: PlayCircle }
+                                                ].map((type) => (
+                                                    <button
+                                                        key={type.id}
+                                                        onClick={() => setFormData(prev => ({ ...prev, contentType: type.id }))}
+                                                        className={`relative flex flex-col items-center text-center p-8 rounded-3xl border-2 transition-all duration-300 group ${formData.contentType === type.id
+                                                            ? "border-primary bg-primary/[0.03] shadow-lg shadow-primary/5"
+                                                            : "border-slate-100 bg-slate-50/50 hover:border-slate-200 hover:bg-white"
+                                                            }`}
+                                                    >
+                                                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-5 transition-all duration-300 ${formData.contentType === type.id ? "bg-primary text-white scale-110 shadow-lg shadow-primary/20" : "bg-white text-slate-400 group-hover:text-slate-600 shadow-sm"}`}>
+                                                            {type.id === 'electronic_book' ? <BookOpen size={32} /> : <PlayCircle size={32} />}
                                                         </div>
-                                                        <input
-                                                            type="radio" className="hidden"
-                                                            name="category" value={cat.id}
-                                                            checked={formData.category === cat.id}
-                                                            onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                                                        />
-                                                        <div>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-lg font-bold text-slate-800">{cat.label}</span>
+                                                        <span className={`text-lg font-bold mb-2 transition-colors ${formData.contentType === type.id ? "text-primary" : "text-slate-900"}`}>{type.label}</span>
+                                                        <span className="text-sm text-slate-400 leading-relaxed">{type.desc}</span>
+                                                        {formData.contentType === type.id && (
+                                                            <div className="absolute top-4 right-4 text-primary animate-in zoom-in-50 duration-300">
+                                                                <CheckCircle2 size={24} fill="currentColor" stroke="white" />
                                                             </div>
-                                                            <p className="text-sm text-slate-400 mt-1">{cat.desc}</p>
-                                                        </div>
-                                                    </label>
+                                                        )}
+                                                    </button>
                                                 ))}
                                             </div>
                                         </div>
 
-                                        <div className="h-px bg-slate-50 w-full" />
+                                        {/* 2. 카테고리 Selection Tiles */}
+                                        <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-8">
+                                            <div className="flex items-center justify-between">
+                                                <h3 className="text-xl font-bold text-slate-900">카테고리*</h3>
+                                                <span className="text-slate-400 text-sm font-medium">콘텐츠의 성격을 가장 잘 나타내는 항목을 선택해 주세요</span>
+                                            </div>
+                                            <div className="grid grid-cols-3 gap-4">
+                                                {[
+                                                    { id: 'attraction', label: '명소', desc: '유적지, 랜드마크' },
+                                                    { id: 'city_tour', label: '시티투어', desc: '워킹투어, 야경투어' },
+                                                    { id: 'story', label: '여행이야기', desc: '지식, 인문학' },
+                                                    { id: 'guidebook', label: '가이드북', desc: '리얼 가이드, 매뉴얼' },
+                                                    { id: 'museum', label: '미술관 / 박물관', desc: '전시 해설, 추천 동선' }
+                                                ].map((cat) => (
+                                                    <button
+                                                        key={cat.id}
+                                                        onClick={() => setFormData(prev => ({ ...prev, category: cat.id }))}
+                                                        className={`flex flex-col p-6 rounded-2xl border-2 text-left transition-all duration-300 relative ${formData.category === cat.id
+                                                            ? "border-primary bg-primary/[0.03] shadow-md shadow-primary/5"
+                                                            : "border-slate-50 bg-slate-50/30 hover:border-slate-100 hover:bg-white"
+                                                            }`}
+                                                    >
+                                                        <span className={`text-base font-bold mb-1 ${formData.category === cat.id ? "text-primary" : "text-slate-800"}`}>{cat.label}</span>
+                                                        <span className="text-xs text-slate-400 line-clamp-1">{cat.desc}</span>
+                                                        {formData.category === cat.id && (
+                                                            <div className="absolute top-4 right-4 text-primary scale-75">
+                                                                <CheckCircle2 size={24} fill="currentColor" stroke="white" />
+                                                            </div>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
 
-                                        {/* 3. 도시 입력 */}
-                                        <div className="space-y-6">
-                                            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                                                <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs">5</div>
-                                                도시*
-                                            </h3>
-                                            <div className="pl-9 space-y-6 max-w-2xl">
-                                                <div className="space-y-2">
-                                                    <p className="text-sm font-bold text-slate-500">도시명</p>
-                                                    <input
-                                                        name="city" value={formData.city} onChange={handleFormChange}
-                                                        disabled={formData.cityType !== 'normal'}
-                                                        type="text" placeholder="도시명을 입력 후 선택하세요."
-                                                        className="w-full px-6 py-4 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white outline-none transition-all disabled:opacity-50"
-                                                    />
-                                                </div>
-                                                <div className="flex flex-col gap-4">
-                                                    {['normal', 'none', 'global'].map((type) => (
-                                                        <label key={type} className="flex items-center gap-3 cursor-pointer group w-fit">
-                                                            <div className={`w-6 h-6 border-2 rounded flex items-center justify-center transition-all ${formData.cityType === type ? "bg-slate-900 border-slate-900" : "border-slate-200"
-                                                                }`}>
-                                                                {formData.cityType === type && <CheckCircle2 size={16} className="text-white" />}
+                                        {/* 3. 도시 입력 (Improved Searchable Input) */}
+                                        <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-8">
+                                            <div className="flex items-center justify-between">
+                                                <h3 className="text-xl font-bold text-slate-900">도시*</h3>
+                                                <div className="flex gap-4">
+                                                    {['none', 'global'].map((type) => (
+                                                        <label key={type} className="flex items-center gap-2 cursor-pointer group">
+                                                            <div className={`w-5 h-5 border-2 rounded-md flex items-center justify-center transition-all ${formData.cityType === type ? "bg-slate-900 border-slate-900" : "border-slate-200"}`}>
+                                                                {formData.cityType === type && <CheckCircle2 size={12} className="text-white" />}
                                                             </div>
                                                             <input
-                                                                type="radio" className="hidden"
-                                                                name="cityType" value={type}
+                                                                type="radio" className="hidden" name="cityType" value={type}
                                                                 checked={formData.cityType === type}
-                                                                onChange={(e) => setFormData(prev => ({ ...prev, cityType: e.target.value }))}
+                                                                onChange={(e) => setFormData(prev => ({ ...prev, cityType: e.target.value, city: e.target.value === 'global' ? '전세계' : '' }))}
                                                             />
-                                                            <span className="text-slate-700 font-medium">
-                                                                {type === 'normal' ? '도시 선택' : type === 'none' ? '해당 도시 없음' : '도시에 한정되지 않음 (국가 or 대륙 관련)'}
+                                                            <span className="text-sm text-slate-500 font-medium group-hover:text-slate-800 transition-colors">
+                                                                {type === 'none' ? '해당 도시 없음' : '전세계 대상'}
                                                             </span>
                                                         </label>
                                                     ))}
                                                 </div>
+                                            </div>
+
+                                            <div className="relative max-w-2xl">
+                                                <div className={`flex items-center gap-3 px-6 py-5 rounded-2xl border-2 transition-all duration-300 ${formData.cityType !== 'normal' ? 'opacity-50 cursor-not-allowed bg-slate-50 border-transparent' : isCityOpen ? 'border-primary bg-white shadow-xl shadow-primary/5' : 'border-slate-100 bg-slate-50/50 hover:border-slate-200'}`}>
+                                                    <Search size={22} className={isCityOpen ? "text-primary" : "text-slate-400"} />
+                                                    <input
+                                                        name="city" value={formData.city}
+                                                        onFocus={() => formData.cityType === 'normal' && setIsCityOpen(true)}
+                                                        onBlur={() => setTimeout(() => setIsCityOpen(false), 200)}
+                                                        onChange={(e) => {
+                                                            setFormData(prev => ({ ...prev, city: e.target.value, cityType: 'normal' }));
+                                                            setIsCityOpen(true);
+                                                        }}
+                                                        disabled={formData.cityType !== 'normal'}
+                                                        type="text" placeholder="도시명을 검색하거나 입력해 주세요."
+                                                        className="flex-1 bg-transparent outline-none text-lg font-medium text-slate-800 placeholder:text-slate-300"
+                                                    />
+                                                    {formData.cityType === 'normal' && <ChevronDown size={20} className={`text-slate-400 transition-transform duration-300 ${isCityOpen ? 'rotate-180' : ''}`} />}
+                                                </div>
+
+                                                {/* Mock Search Results dropdown */}
+                                                {isCityOpen && formData.city.length > 0 && formData.cityType === 'normal' && (
+                                                    <div className="absolute top-full left-0 right-0 mt-3 bg-white rounded-3xl border border-surface-border shadow-2xl p-4 z-50 animate-in slide-in-from-top-2 duration-200">
+                                                        <div className="p-3 text-xs font-bold text-slate-400 uppercase tracking-widest px-6">추천 도시</div>
+                                                        {['파리', '런던', '도쿄', '뉴욕', '바르셀로나'].filter(c => c.includes(formData.city)).map((c) => (
+                                                            <button
+                                                                key={c}
+                                                                onMouseDown={() => {
+                                                                    setFormData(prev => ({ ...prev, city: c }));
+                                                                    setIsCityOpen(false);
+                                                                }}
+                                                                className="w-full flex items-center gap-4 px-6 py-4 hover:bg-slate-50 rounded-2xl transition-colors text-left"
+                                                            >
+                                                                <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
+                                                                    <Globe size={18} />
+                                                                </div>
+                                                                <span className="text-lg font-bold text-slate-800">{c}</span>
+                                                            </button>
+                                                        ))}
+                                                        <button
+                                                            onMouseDown={() => setIsCityOpen(false)}
+                                                            className="w-full flex items-center gap-4 px-6 py-4 border-t border-slate-50 hover:bg-slate-50 rounded-2xl transition-colors text-left mt-2"
+                                                        >
+                                                            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                                                                <Plus size={18} />
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-lg font-bold text-slate-800">&quot;{formData.city}&quot; 직접 입력</span>
+                                                                <p className="text-xs text-slate-400 mt-0.5">새로운 도시로 등록합니다</p>
+                                                            </div>
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -400,19 +431,19 @@ export default function ManageContent() {
                                 )}
                             </div>
 
-                            {/* Sticky Footer */}
-                            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-[60]">
-                                <div className="max-w-[1400px] mx-auto px-8 py-6 flex justify-end gap-4">
+                            {/* Sticky Footer (Refined Height & Blur) */}
+                            <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.02)] z-[60]">
+                                <div className="max-w-[1400px] mx-auto px-10 py-5 flex justify-end gap-5">
                                     <button
                                         onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
                                         disabled={currentStep === 1}
-                                        className="px-10 py-5 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+                                        className="px-8 py-4 rounded-2xl font-bold text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-20 disabled:hover:bg-transparent"
                                     >
                                         이전 단계로
                                     </button>
                                     <button
                                         onClick={() => handleSaveAndNext()}
-                                        className="px-16 py-5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-2xl shadow-xl transition-all active:scale-[0.98] flex items-center gap-2"
+                                        className="px-12 py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl shadow-xl shadow-slate-900/10 transition-all active:scale-[0.98] flex items-center gap-2"
                                     >
                                         {loading ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : null}
                                         {currentStep === steps.length ? "최종 저장 및 완료" : "저장 및 다음 단계로"}
