@@ -16,11 +16,9 @@ import {
     BookOpen,
     PlayCircle,
     X,
-    Map,
     ImageIcon,
     Layers,
-    XCircle,
-    Link as LinkIcon
+    XCircle
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -170,18 +168,11 @@ export default function ManageContent() {
 
     // Dynamic steps configuration
     const getSteps = () => {
-        const baseSteps = [{ id: 1, label: '카테고리 선택' }];
-
-        if (formData.contentType === 'audio_video') {
-            baseSteps.push({ id: 2, label: '위치 및 지도 선택' });
-            baseSteps.push({ id: 3, label: '상세 페이지 제작' });
-            baseSteps.push({ id: 4, label: '심사 과정' });
-        } else {
-            // E-book path
-            baseSteps.push({ id: 2, label: '상세 페이지 제작' });
-            baseSteps.push({ id: 3, label: '심사 과정' });
-        }
-        return baseSteps;
+        return [
+            { id: 1, label: '카테고리 선택' },
+            { id: 2, label: '상세 페이지 제작' },
+            { id: 3, label: '등록 완료' }
+        ];
     };
 
     const steps = getSteps();
@@ -284,7 +275,12 @@ export default function ManageContent() {
             if (nextStep) {
                 setCurrentStep(nextStep);
             } else {
-                setCurrentStep((prev) => Math.min(prev + 1, steps.length));
+                if (currentStep === 2) {
+                    // Navigate to 'Registration Complete' step
+                    setCurrentStep(3);
+                } else {
+                    setCurrentStep((prev) => Math.min(prev + 1, steps.length));
+                }
             }
         } catch (error: unknown) {
             console.error("Save error:", error);
@@ -524,328 +520,240 @@ export default function ManageContent() {
                                     </div>
                                 )}
 
-                                {formData.contentType === 'audio_video' && currentStep === 2 && (
+
+                                {currentStep === 2 && (
                                     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                                        {/* 1. 미술관 / 박물관 정보 (Conditional) */}
-                                        {formData.category === 'museum' && (
-                                            <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-8">
+                                        <>
+                                            {/* 1. 콘텐츠 이름 */}
+                                            <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-6">
                                                 <div className="flex items-center justify-between">
-                                                    <h3 className="text-xl font-bold text-slate-900 italic">미술관 / 박물관 정보*</h3>
-                                                    <span className="text-slate-400 text-sm font-medium">정확한 장소 정보를 입력해 주세요</span>
+                                                    <h3 className="text-xl font-bold text-slate-900">콘텐츠 이름*</h3>
+                                                    <span className={`text-sm font-medium ${formData.title.length > 50 ? 'text-red-500' : 'text-slate-400'}`}>
+                                                        {formData.title.length}/50
+                                                    </span>
                                                 </div>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                    <div className="space-y-3">
-                                                        <label className="text-sm font-bold text-slate-500 ml-1">기관명</label>
-                                                        <div className="relative group">
-                                                            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">
-                                                                <Search size={18} />
-                                                            </div>
-                                                            <input
-                                                                type="text"
-                                                                placeholder="기관명을 검색하거나 입력하세요"
-                                                                value={formData.museumName}
-                                                                onChange={(e) => setFormData(prev => ({ ...prev, museumName: e.target.value }))}
-                                                                className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all placeholder:text-slate-300 font-medium"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div className="space-y-3">
-                                                        <label className="text-sm font-bold text-slate-500 ml-1">공식 홈페이지 링크 (선택)</label>
-                                                        <div className="relative group">
-                                                            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">
-                                                                <LinkIcon size={18} />
-                                                            </div>
-                                                            <input
-                                                                type="url"
-                                                                placeholder="https://..."
-                                                                value={formData.museumLink}
-                                                                onChange={(e) => setFormData(prev => ({ ...prev, museumLink: e.target.value }))}
-                                                                className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all placeholder:text-slate-300 font-medium"
-                                                            />
-                                                        </div>
+                                                <div className="space-y-3">
+                                                    <input
+                                                        type="text"
+                                                        maxLength={50}
+                                                        placeholder="콘텐츠 이름을 입력해 주세요."
+                                                        value={formData.title}
+                                                        onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                                                        className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all font-medium text-lg"
+                                                    />
+                                                    <div className="text-xs text-slate-400 space-y-1 ml-1 leading-relaxed">
+                                                        <p>• 50자 제한 / 이모티콘 및 특수문자 사용 불가</p>
+                                                        <p>• 등록하시고자 하는 콘텐츠의 특성과 지역이 잘 드러나는 키워드를 사용해 주세요.</p>
+                                                        <p>• 기존 콘텐츠 이름과 중복될 시 콘텐츠 등록이 반려됩니다.</p>
                                                     </div>
                                                 </div>
                                             </div>
-                                        )}
 
-                                        {/* 2. 지도 활용 (Map Selection Tiles) */}
-                                        <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-8">
-                                            <div className="flex items-center justify-between">
-                                                <div className="space-y-1">
-                                                    <h3 className="text-xl font-bold text-slate-900">지도 활용*</h3>
-                                                    <p className="text-slate-400 text-sm font-medium">여행자가 길을 찾으려면 어떤 지도가 필요한가요?</p>
+                                            {/* 2. 콘텐츠 소개글 */}
+                                            <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-6">
+                                                <div className="flex items-center justify-between">
+                                                    <h3 className="text-xl font-bold text-slate-900">콘텐츠 소개글*</h3>
+                                                    <span className={`text-sm font-medium ${formData.description.length < 500 || formData.description.length > 1000 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                                                        {formData.description.length} / 1000자 (최소 500자)
+                                                    </span>
                                                 </div>
-                                                <button
-                                                    onClick={() => window.open('https://www.tourlive.co.kr', '_blank')}
-                                                    className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors"
-                                                >
-                                                    예시 보기
-                                                </button>
+                                                <div className="space-y-3">
+                                                    <textarea
+                                                        placeholder={`<소개글 작성 추천 요소>\n• 이 투어가 왜 특별한지\n• 이 장소를 왜 추천하는지, 그리고 그냥 방문하면 무엇을 놓치게 되는지\n• 이 투어를 통해 여행자가 무엇을 알고 무엇을 느끼게 될지\n• 이 투어가 어떤 방식으로 진행되는지, 어떤 포인트를 다루는지\n• 어떤 여행자에게 특히 잘 맞는지\n\n[예시]\n우피치 미술관은 르네상스가 태어난 도시 피렌체를 대표하는 세계 최고의 미술관입니다.\n하지만 수많은 명화 속에 담긴 의미와 이야기를 모르고 보면, 그냥 '유명한 그림들'로만 지나치기 쉽습니다.\n이 투어는 르네상스 시대 사람들의 생각이 어떻게 바뀌었는지, 화가들이 그것을 어떻게 그림 속에 담아냈는지를 작품과 함께 쉽고 재미있게 풀어드립니다.`}
+                                                        value={formData.description}
+                                                        onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                                                        className="w-full px-6 py-6 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all font-medium text-base min-h-[400px] leading-relaxed resize-none"
+                                                    />
+                                                    <p className="text-xs text-slate-400 ml-1">• 최소 500자 최대 1000자 제한 (공백포함)</p>
+                                                </div>
                                             </div>
 
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                {[
-                                                    { id: 'google_map', label: '외부 구글맵', desc: '팔라티노 언덕 투어, 폼페이 투어 등 명소 가이드', icon: Map },
-                                                    { id: 'image_map', label: '내부 이미지 지도', desc: '대영 박물관, 우피치 미술관 등 실내 가이드', icon: ImageIcon },
-                                                    { id: 'both', label: '외부, 내부 모두 사용', desc: '베르사유 투어, 가우디 반일투어 등 복합 가이드', icon: Layers },
-                                                    { id: 'none', label: '필요하지 않음', desc: '여행이야기, 가이드북, 인문학 콘텐츠 등', icon: XCircle }
-                                                ].map((map) => (
-                                                    <button
-                                                        key={map.id}
-                                                        onClick={() => setFormData(prev => ({ ...prev, mapType: map.id }))}
-                                                        className={`flex gap-5 p-6 rounded-[24px] border-2 text-left transition-all duration-300 relative ${formData.mapType === map.id
-                                                            ? "border-primary bg-primary/[0.03] shadow-lg shadow-primary/5"
-                                                            : "border-slate-100 bg-slate-50/30 hover:border-slate-200 hover:bg-white"
-                                                            }`}
-                                                    >
-                                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${formData.mapType === map.id ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-white text-slate-400 border border-slate-100 shadow-sm"}`}>
-                                                            <map.icon size={22} />
-                                                        </div>
-                                                        <div className="flex-1 pr-6">
-                                                            <span className={`block text-lg font-bold mb-1 ${formData.mapType === map.id ? "text-primary" : "text-slate-800"}`}>{map.label}</span>
-                                                            <span className="text-sm text-slate-400 leading-snug">{map.desc}</span>
-                                                        </div>
-                                                        {formData.mapType === map.id && (
-                                                            <div className="absolute top-4 right-4 text-primary animate-in zoom-in-50 duration-300">
-                                                                <CheckCircle2 size={24} fill="currentColor" stroke="white" />
-                                                            </div>
-                                                        )}
-                                                    </button>
-                                                ))}
-                                            </div>
-
-                                            <div className="bg-slate-50/80 rounded-2xl p-6 space-y-2">
-                                                <p className="text-sm text-slate-600 font-medium flex items-center gap-2">
-                                                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
-                                                    여행자가 길을 찾으려면 어떤 지도가 필요한가요?
-                                                </p>
-                                                <p className="text-sm text-slate-600 font-medium flex items-center gap-2">
-                                                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
-                                                    예시를 통해 자세히 알아보세요.
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {((currentStep === 3 && formData.contentType === 'audio_video') || (currentStep === 2 && formData.contentType === 'electronic_book')) && (
-                                    <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                                        {formData.contentType === 'electronic_book' ? (
-                                            <>
-                                                {/* 1. 콘텐츠 이름 */}
-                                                <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-6">
-                                                    <div className="flex items-center justify-between">
-                                                        <h3 className="text-xl font-bold text-slate-900">콘텐츠 이름*</h3>
-                                                        <span className={`text-sm font-medium ${formData.title.length > 50 ? 'text-red-500' : 'text-slate-400'}`}>
-                                                            {formData.title.length}/50
-                                                        </span>
-                                                    </div>
-                                                    <div className="space-y-3">
+                                            {/* 3. 콘텐츠 가격 */}
+                                            <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-6">
+                                                <div className="flex items-center justify-between">
+                                                    <h3 className="text-xl font-bold text-slate-900">콘텐츠 가격*</h3>
+                                                    <button className="px-4 py-2 rounded-xl border border-slate-200 text-slate-500 font-bold text-xs hover:bg-slate-50 transition-colors">가이드라인</button>
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="relative flex-1 max-w-xs group">
+                                                        <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-900 font-bold">₩</div>
                                                         <input
                                                             type="text"
-                                                            maxLength={50}
-                                                            placeholder="콘텐츠 이름을 입력해 주세요."
-                                                            value={formData.title}
-                                                            onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                                                            className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all font-medium text-lg"
+                                                            placeholder="가격 입력"
+                                                            value={formData.price}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value.replace(/[^0-9]/g, '');
+                                                                setFormData(prev => ({ ...prev, price: val ? Number(val).toLocaleString() : '' }));
+                                                            }}
+                                                            className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all font-bold text-lg text-right"
                                                         />
-                                                        <div className="text-xs text-slate-400 space-y-1 ml-1 leading-relaxed">
-                                                            <p>• 50자 제한 / 이모티콘 및 특수문자 사용 불가</p>
-                                                            <p>• 등록하시고자 하는 콘텐츠의 특성과 지역이 잘 드러나는 키워드를 사용해 주세요.</p>
-                                                            <p>• 기존 콘텐츠 이름과 중복될 시 콘텐츠 등록이 반려됩니다.</p>
-                                                        </div>
+                                                    </div>
+                                                    <span className="text-slate-400 font-medium">KRW (₩) 기준</span>
+                                                </div>
+                                            </div>
+
+                                            {/* 4. 이미지 업로드 */}
+                                            <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-8">
+                                                <div className="space-y-1">
+                                                    <h3 className="text-xl font-bold text-slate-900">이미지 업로드*</h3>
+                                                    <div className="text-xs text-slate-400 space-y-1 leading-relaxed">
+                                                        <p>• 사용 환경에 따라 사진이 잘려 보일 수 있습니다. (권장 규격 1200*645) 용량 5mb 미만</p>
+                                                        <p>• 첫 사진이 대표사진(썸네일)으로 자동 지정됩니다.</p>
+                                                        <p>• 최소 1장, 최대 3장까지 사진 등록이 가능합니다.</p>
                                                     </div>
                                                 </div>
 
-                                                {/* 2. 콘텐츠 소개글 */}
-                                                <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-6">
-                                                    <div className="flex items-center justify-between">
-                                                        <h3 className="text-xl font-bold text-slate-900">콘텐츠 소개글*</h3>
-                                                        <span className={`text-sm font-medium ${formData.description.length < 500 || formData.description.length > 1000 ? 'text-amber-500' : 'text-emerald-500'}`}>
-                                                            {formData.description.length} / 1000자 (최소 500자)
-                                                        </span>
-                                                    </div>
-                                                    <div className="space-y-3">
-                                                        <textarea
-                                                            placeholder={`<소개글 작성 추천 요소>\n• 이 투어가 왜 특별한지\n• 이 장소를 왜 추천하는지, 그리고 그냥 방문하면 무엇을 놓치게 되는지\n• 이 투어를 통해 여행자가 무엇을 알고 무엇을 느끼게 될지\n• 이 투어가 어떤 방식으로 진행되는지, 어떤 포인트를 다루는지\n• 어떤 여행자에게 특히 잘 맞는지\n\n[예시]\n우피치 미술관은 르네상스가 태어난 도시 피렌체를 대표하는 세계 최고의 미술관입니다.\n하지만 수많은 명화 속에 담긴 의미와 이야기를 모르고 보면, 그냥 '유명한 그림들'로만 지나치기 쉽습니다.\n이 투어는 르네상스 시대 사람들의 생각이 어떻게 바뀌었는지, 화가들이 그것을 어떻게 그림 속에 담아냈는지를 작품과 함께 쉽고 재미있게 풀어드립니다.`}
-                                                            value={formData.description}
-                                                            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                                                            className="w-full px-6 py-6 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all font-medium text-base min-h-[400px] leading-relaxed resize-none"
-                                                        />
-                                                        <p className="text-xs text-slate-400 ml-1">• 최소 500자 최대 1000자 제한 (공백포함)</p>
-                                                    </div>
-                                                </div>
-
-                                                {/* 3. 콘텐츠 가격 */}
-                                                <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-6">
-                                                    <div className="flex items-center justify-between">
-                                                        <h3 className="text-xl font-bold text-slate-900">콘텐츠 가격*</h3>
-                                                        <button className="px-4 py-2 rounded-xl border border-slate-200 text-slate-500 font-bold text-xs hover:bg-slate-50 transition-colors">가이드라인</button>
-                                                    </div>
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="relative flex-1 max-w-xs group">
-                                                            <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-900 font-bold">₩</div>
-                                                            <input
-                                                                type="text"
-                                                                placeholder="가격 입력"
-                                                                value={formData.price}
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value.replace(/[^0-9]/g, '');
-                                                                    setFormData(prev => ({ ...prev, price: val ? Number(val).toLocaleString() : '' }));
-                                                                }}
-                                                                className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all font-bold text-lg text-right"
-                                                            />
+                                                <div className="grid grid-cols-1 gap-4 max-w-2xl">
+                                                    {/* Thumbnail */}
+                                                    <div className="group relative flex items-center gap-6 p-6 rounded-3xl border-2 border-primary/20 bg-primary/5 hover:border-primary/40 transition-all">
+                                                        <div className="w-32 h-20 rounded-xl bg-white border border-slate-100 overflow-hidden flex items-center justify-center text-slate-300">
+                                                            {formData.thumbnailPreview ? (
+                                                                <img src={formData.thumbnailPreview} className="w-full h-full object-cover" alt="" />
+                                                            ) : <ImageIcon size={32} />}
                                                         </div>
-                                                        <span className="text-slate-400 font-medium">KRW (₩) 기준</span>
-                                                    </div>
-                                                </div>
-
-                                                {/* 4. 이미지 업로드 */}
-                                                <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-8">
-                                                    <div className="space-y-1">
-                                                        <h3 className="text-xl font-bold text-slate-900">이미지 업로드*</h3>
-                                                        <div className="text-xs text-slate-400 space-y-1 leading-relaxed">
-                                                            <p>• 사용 환경에 따라 사진이 잘려 보일 수 있습니다. (권장 규격 1200*645) 용량 5mb 미만</p>
-                                                            <p>• 첫 사진이 대표사진(썸네일)으로 자동 지정됩니다.</p>
-                                                            <p>• 최소 1장, 최대 3장까지 사진 등록이 가능합니다.</p>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="grid grid-cols-1 gap-4 max-w-2xl">
-                                                        {/* Thumbnail */}
-                                                        <div className="group relative flex items-center gap-6 p-6 rounded-3xl border-2 border-primary/20 bg-primary/5 hover:border-primary/40 transition-all">
-                                                            <div className="w-32 h-20 rounded-xl bg-white border border-slate-100 overflow-hidden flex items-center justify-center text-slate-300">
-                                                                {formData.thumbnailPreview ? (
-                                                                    <img src={formData.thumbnailPreview} className="w-full h-full object-cover" alt="" />
-                                                                ) : <ImageIcon size={32} />}
-                                                            </div>
-                                                            <div className="flex-1">
-                                                                <span className="block text-base font-bold text-slate-900 mb-1">대표사진*</span>
-                                                                <div className="flex items-center gap-3">
-                                                                    <label className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-sm rounded-xl transition-all cursor-pointer">
-                                                                        파일 선택
-                                                                        <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'thumbnail')} />
-                                                                    </label>
-                                                                    {formData.thumbnailPreview && (
-                                                                        <div className="flex gap-2">
-                                                                            <button className="p-2 text-slate-400 hover:text-slate-600 transition-colors"><Layers size={20} /></button>
-                                                                            <button
-                                                                                onClick={() => setFormData(prev => ({ ...prev, thumbnailUrl: "", thumbnailPreview: "" }))}
-                                                                                className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-                                                                            >
-                                                                                <XCircle size={20} />
-                                                                            </button>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Gallery 1 */}
-                                                        <div className="group relative flex items-center gap-6 p-6 rounded-3xl border-2 border-slate-100 bg-slate-50/50 hover:border-slate-200 transition-all">
-                                                            <div className="w-32 h-20 rounded-xl bg-white border border-slate-100 overflow-hidden flex items-center justify-center text-slate-300">
-                                                                {formData.galleryPreviews[0] ? (
-                                                                    <img src={formData.galleryPreviews[0]} className="w-full h-full object-cover" alt="" />
-                                                                ) : <ImageIcon size={32} />}
-                                                            </div>
-                                                            <div className="flex-1">
-                                                                <span className="block text-base font-bold text-slate-900 mb-1">이미지1</span>
-                                                                <div className="flex items-center gap-3">
-                                                                    <label className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold text-sm rounded-xl transition-all cursor-pointer">
-                                                                        파일 선택
-                                                                        <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'gallery')} />
-                                                                    </label>
-                                                                    {formData.galleryPreviews[0] && (
+                                                        <div className="flex-1">
+                                                            <span className="block text-base font-bold text-slate-900 mb-1">대표사진*</span>
+                                                            <div className="flex items-center gap-3">
+                                                                <label className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-sm rounded-xl transition-all cursor-pointer">
+                                                                    파일 선택
+                                                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'thumbnail')} />
+                                                                </label>
+                                                                {formData.thumbnailPreview && (
+                                                                    <div className="flex gap-2">
+                                                                        <button className="p-2 text-slate-400 hover:text-slate-600 transition-colors"><Layers size={20} /></button>
                                                                         <button
-                                                                            onClick={() => {
-                                                                                setFormData(prev => ({
-                                                                                    ...prev,
-                                                                                    galleryUrls: prev.galleryUrls.filter((_, i) => i !== 0),
-                                                                                    galleryPreviews: prev.galleryPreviews.filter((_, i) => i !== 0)
-                                                                                }));
-                                                                            }}
+                                                                            onClick={() => setFormData(prev => ({ ...prev, thumbnailUrl: "", thumbnailPreview: "" }))}
                                                                             className="p-2 text-slate-400 hover:text-red-500 transition-colors"
                                                                         >
                                                                             <XCircle size={20} />
                                                                         </button>
-                                                                    )}
-                                                                </div>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
+                                                    </div>
 
-                                                        {/* Gallery 2 */}
-                                                        <div className="group relative flex items-center gap-6 p-6 rounded-3xl border-2 border-slate-100 bg-slate-50/50 hover:border-slate-200 transition-all">
-                                                            <div className="w-32 h-20 rounded-xl bg-white border border-slate-100 overflow-hidden flex items-center justify-center text-slate-300">
-                                                                {formData.galleryPreviews[1] ? (
-                                                                    <img src={formData.galleryPreviews[1]} className="w-full h-full object-cover" alt="" />
-                                                                ) : <ImageIcon size={32} />}
+                                                    {/* Gallery 1 */}
+                                                    <div className="group relative flex items-center gap-6 p-6 rounded-3xl border-2 border-slate-100 bg-slate-50/50 hover:border-slate-200 transition-all">
+                                                        <div className="w-32 h-20 rounded-xl bg-white border border-slate-100 overflow-hidden flex items-center justify-center text-slate-300">
+                                                            {formData.galleryPreviews[0] ? (
+                                                                <img src={formData.galleryPreviews[0]} className="w-full h-full object-cover" alt="" />
+                                                            ) : <ImageIcon size={32} />}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <span className="block text-base font-bold text-slate-900 mb-1">이미지1</span>
+                                                            <div className="flex items-center gap-3">
+                                                                <label className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold text-sm rounded-xl transition-all cursor-pointer">
+                                                                    파일 선택
+                                                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'gallery')} />
+                                                                </label>
+                                                                {formData.galleryPreviews[0] && (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setFormData(prev => ({
+                                                                                ...prev,
+                                                                                galleryUrls: prev.galleryUrls.filter((_, i) => i !== 0),
+                                                                                galleryPreviews: prev.galleryPreviews.filter((_, i) => i !== 0)
+                                                                            }));
+                                                                        }}
+                                                                        className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                                                                    >
+                                                                        <XCircle size={20} />
+                                                                    </button>
+                                                                )}
                                                             </div>
-                                                            <div className="flex-1">
-                                                                <span className="block text-base font-bold text-slate-900 mb-1">이미지2</span>
-                                                                <div className="flex items-center gap-3">
-                                                                    <label className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold text-sm rounded-xl transition-all cursor-pointer">
-                                                                        파일 선택
-                                                                        <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'gallery')} />
-                                                                    </label>
-                                                                    {formData.galleryPreviews[1] && (
-                                                                        <button
-                                                                            onClick={() => {
-                                                                                setFormData(prev => ({
-                                                                                    ...prev,
-                                                                                    galleryUrls: prev.galleryUrls.filter((_, i) => i !== 1),
-                                                                                    galleryPreviews: prev.galleryPreviews.filter((_, i) => i !== 1)
-                                                                                }));
-                                                                            }}
-                                                                            className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-                                                                        >
-                                                                            <XCircle size={20} />
-                                                                        </button>
-                                                                    )}
-                                                                </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Gallery 2 */}
+                                                    <div className="group relative flex items-center gap-6 p-6 rounded-3xl border-2 border-slate-100 bg-slate-50/50 hover:border-slate-200 transition-all">
+                                                        <div className="w-32 h-20 rounded-xl bg-white border border-slate-100 overflow-hidden flex items-center justify-center text-slate-300">
+                                                            {formData.galleryPreviews[1] ? (
+                                                                <img src={formData.galleryPreviews[1]} className="w-full h-full object-cover" alt="" />
+                                                            ) : <ImageIcon size={32} />}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <span className="block text-base font-bold text-slate-900 mb-1">이미지2</span>
+                                                            <div className="flex items-center gap-3">
+                                                                <label className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold text-sm rounded-xl transition-all cursor-pointer">
+                                                                    파일 선택
+                                                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'gallery')} />
+                                                                </label>
+                                                                {formData.galleryPreviews[1] && (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setFormData(prev => ({
+                                                                                ...prev,
+                                                                                galleryUrls: prev.galleryUrls.filter((_, i) => i !== 1),
+                                                                                galleryPreviews: prev.galleryPreviews.filter((_, i) => i !== 1)
+                                                                            }));
+                                                                        }}
+                                                                        className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                                                                    >
+                                                                        <XCircle size={20} />
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
+                                            </div>
 
-                                                {/* 5. epub 파일 업로드 */}
-                                                <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-6">
-                                                    <h3 className="text-xl font-bold text-slate-900">epub 파일 업로드*</h3>
-                                                    <div className="flex items-center gap-4">
-                                                        <label className="px-10 py-6 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-lg rounded-2xl transition-all flex items-center gap-3 border-2 border-dashed border-primary/30 cursor-pointer">
-                                                            {formData.epubFileName ? <FileText size={24} /> : <Plus size={24} />}
-                                                            {formData.epubFileName || "파일 선택"}
-                                                            <input type="file" className="hidden" accept=".epub" onChange={(e) => handleFileUpload(e, 'epub')} />
-                                                        </label>
-                                                        {formData.epubFileName && (
-                                                            <button
-                                                                onClick={() => setFormData(prev => ({ ...prev, epubUrl: "", epubFileName: "" }))}
-                                                                className="p-3 text-slate-300 hover:text-red-500 transition-colors"
-                                                            >
-                                                                <XCircle size={24} />
-                                                            </button>
-                                                        )}
-                                                    </div>
+                                            {/* 5. 콘텐츠 파일 업로드 */}
+                                            <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-6">
+                                                <h3 className="text-xl font-bold text-slate-900">
+                                                    {formData.contentType === 'electronic_book' ? 'epub 파일 업로드*' : '콘텐츠 파일 업로드*'}
+                                                </h3>
+                                                <div className="flex items-center gap-4">
+                                                    <label className="px-10 py-6 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-lg rounded-2xl transition-all flex items-center gap-3 border-2 border-dashed border-primary/30 cursor-pointer">
+                                                        {formData.epubFileName ? <FileText size={24} /> : <Plus size={24} />}
+                                                        {formData.epubFileName || "파일 선택"}
+                                                        <input
+                                                            type="file"
+                                                            className="hidden"
+                                                            accept={formData.contentType === 'electronic_book' ? ".epub" : "audio/*,video/*"}
+                                                            onChange={(e) => handleFileUpload(e, 'epub')}
+                                                        />
+                                                    </label>
+                                                    {formData.epubFileName && (
+                                                        <button
+                                                            onClick={() => setFormData(prev => ({ ...prev, epubUrl: "", epubFileName: "" }))}
+                                                            className="p-3 text-slate-300 hover:text-red-500 transition-colors"
+                                                        >
+                                                            <XCircle size={24} />
+                                                        </button>
+                                                    )}
                                                 </div>
-                                            </>
-                                        ) : (
-                                            <div className="bg-white rounded-[40px] border border-surface-border shadow-sm p-12">
-                                                <h3 className="text-2xl font-bold text-slate-900 mb-6">오디오 / 비디오 상세 제작</h3>
-                                                <p className="text-slate-500 text-lg leading-relaxed">
-                                                    오디오 / 비디오 콘텐츠를 위한 상세 제작 단계입니다.<br />
-                                                    현재 기능 구현 준비 중입니다. 잠시만 기다려 주세요!
+                                                <p className="text-xs text-slate-400 ml-1">
+                                                    {formData.contentType === 'electronic_book'
+                                                        ? '• .epub 형식의 파일만 업로드 가능합니다.'
+                                                        : '• 오디오(.mp3) 또는 비디오 콘텐츠 파일을 업로드해 주세요.'}
                                                 </p>
                                             </div>
-                                        )}
+                                        </>
                                     </div>
                                 )}
 
-                                {currentStep === steps.length && currentStep > 2 && (
-                                    <div className="bg-white rounded-[40px] border border-surface-border shadow-sm p-12 animate-in fade-in slide-in-from-right-4 duration-500">
-                                        <h3 className="text-2xl font-bold text-slate-900 mb-6">심사 과정 안내</h3>
-                                        <p className="text-slate-500 text-lg leading-relaxed">
-                                            제출하신 콘텐츠는 3~5 영업일 이내에 담당자의 심사를 거쳐 결과가 안내됩니다.<br />
-                                            심사 통과 시 투어라이브 앱에 즉시 공개됩니다.
-                                        </p>
+                                {currentStep === 3 && (
+                                    <div className="bg-white rounded-[40px] border border-surface-border shadow-sm p-16 animate-in fade-in zoom-in-95 duration-700 text-center space-y-8">
+                                        <div className="w-24 h-24 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                                            <CheckCircle2 size={48} />
+                                        </div>
+                                        <div className="space-y-4">
+                                            <h3 className="text-3xl font-black text-slate-900">콘텐츠 등록 신청 완료!</h3>
+                                            <p className="text-slate-500 text-lg leading-relaxed max-w-md mx-auto">
+                                                축하합니다! 콘텐츠 등록이 성공적으로 완료되었습니다.<br />
+                                                이제 관리자 페이지에서 등록하신 콘텐츠를 확인하고 관리하실 수 있습니다.
+                                            </p>
+                                        </div>
+                                        <div className="pt-6">
+                                            <button
+                                                onClick={() => setView("list")}
+                                                className="px-10 py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-95"
+                                            >
+                                                목록으로 돌아가기
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </div>
