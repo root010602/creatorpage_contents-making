@@ -3,18 +3,25 @@
 @tailwind utilities;
 
 :root {
-  --background: #f8fafc; /* Slate 50 */
-  --foreground: #0f172a; /* Slate 900 */
+  --background: #fffcf8;
+  /* Tourlive Lightest Orange */
+  --foreground: #1c1917;
+  /* Stone 900 */
   --surface: #ffffff;
-  --surface-border: #e2e8f0; /* Slate 200 */
+  --surface-border: #ffedd5;
+  /* Orange 100 */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #020617; /* Slate 950 */
-    --foreground: #f8fafc; /* Slate 50 */
-    --surface: #0f172a; /* Slate 900 */
-    --surface-border: #1e293b; /* Slate 800 */
+    --background: #020617;
+    /* Slate 950 */
+    --foreground: #f8fafc;
+    /* Slate 50 */
+    --surface: #0f172a;
+    /* Slate 900 */
+    --surface-border: #1e293b;
+    /* Slate 800 */
   }
 }
 
@@ -28,6 +35,7 @@ body {
   .glass {
     @apply bg-opacity-70 backdrop-blur-md border border-white/10;
   }
+
   .text-balance {
     text-wrap: balance;
   }
