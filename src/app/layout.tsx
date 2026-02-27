@@ -1,23 +1,18 @@
 import type { Metadata } from "next";
-import { Outfit, Inter } from "next/font/google";
+import { Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
 
-const outfit = Outfit({
+const notoSansKr = Noto_Sans_KR({
   subsets: ["latin"],
-  variable: "--font-outfit",
-  display: "swap",
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
+  weight: ["100", "300", "400", "500", "700", "900"],
+  variable: "--font-noto-sans-kr",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Content Platform | Manage Your Assets",
-  description: "A premium content management platform built with Next.js 14.",
+  title: "투어라이브 콘텐츠 관리 플랫폼",
+  description: "투어라이브 크리에이터를 위한 프리미엄 콘텐츠 관리 플랫폼입니다.",
 };
 
 export default function RootLayout({
@@ -26,9 +21,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="ko">
       <body
-        className={`${outfit.variable} ${inter.variable} font-sans antialiased flex bg-background text-foreground`}
+        className={`${notoSansKr.variable} font-sans antialiased flex bg-background text-foreground`}
       >
         <Sidebar />
         <main className="flex-1 ml-64 p-8 min-h-screen">
