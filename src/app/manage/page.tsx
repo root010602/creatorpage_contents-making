@@ -274,7 +274,7 @@ export default function ManageContent() {
                             </div>
 
                             {/* Step Content: Step 1 (Premium UI Overhaul) */}
-                            <div className="space-y-8 mb-32">
+                            <div className="space-y-8 mb-20">
                                 {currentStep === 1 && (
                                     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                                         {/* 1. 콘텐츠 유형 Selection Tiles */}
@@ -346,50 +346,55 @@ export default function ManageContent() {
                                         </div>
 
                                         {/* 3. 도시 입력 (Improved Searchable Input) */}
-                                        <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-8">
+                                        <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-6">
                                             <div className="flex items-center justify-between">
                                                 <h3 className="text-xl font-bold text-slate-900">도시*</h3>
                                                 <div className="flex gap-4">
-                                                    {['none', 'global'].map((type) => (
-                                                        <label key={type} className="flex items-center gap-2 cursor-pointer group">
-                                                            <div className={`w-5 h-5 border-2 rounded-md flex items-center justify-center transition-all ${formData.cityType === type ? "bg-slate-900 border-slate-900" : "border-slate-200"}`}>
-                                                                {formData.cityType === type && <CheckCircle2 size={12} className="text-white" />}
-                                                            </div>
-                                                            <input
-                                                                type="radio" className="hidden" name="cityType" value={type}
-                                                                checked={formData.cityType === type}
-                                                                onChange={(e) => setFormData(prev => ({ ...prev, cityType: e.target.value, city: e.target.value === 'global' ? '전세계' : '' }))}
-                                                            />
-                                                            <span className="text-sm text-slate-500 font-medium group-hover:text-slate-800 transition-colors">
-                                                                {type === 'none' ? '해당 도시 없음' : '전세계 대상'}
-                                                            </span>
-                                                        </label>
-                                                    ))}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const newType = formData.cityType === 'global' ? 'normal' : 'global';
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                cityType: newType,
+                                                                city: newType === 'global' ? '전세계' : ''
+                                                            }));
+                                                            if (newType === 'global') setIsCityOpen(false);
+                                                        }}
+                                                        className="flex items-center gap-2 cursor-pointer group"
+                                                    >
+                                                        <div className={`w-5 h-5 border-2 rounded-md flex items-center justify-center transition-all ${formData.cityType === 'global' ? "bg-slate-900 border-slate-900" : "border-slate-200"}`}>
+                                                            {formData.cityType === 'global' && <CheckCircle2 size={12} className="text-white" />}
+                                                        </div>
+                                                        <span className={`text-sm font-medium transition-colors ${formData.cityType === 'global' ? "text-slate-900" : "text-slate-500 group-hover:text-slate-800"}`}>
+                                                            전세계 대상
+                                                        </span>
+                                                    </button>
                                                 </div>
                                             </div>
 
                                             <div className="relative max-w-2xl">
-                                                <div className={`flex items-center gap-3 px-6 py-5 rounded-2xl border-2 transition-all duration-300 ${formData.cityType !== 'normal' ? 'opacity-50 cursor-not-allowed bg-slate-50 border-transparent' : isCityOpen ? 'border-primary bg-white shadow-xl shadow-primary/5' : 'border-slate-100 bg-slate-50/50 hover:border-slate-200'}`}>
-                                                    <Search size={22} className={isCityOpen ? "text-primary" : "text-slate-400"} />
+                                                <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl border-2 transition-all duration-300 ${formData.cityType === 'global' ? 'opacity-40 cursor-not-allowed bg-slate-50 border-transparent' : isCityOpen ? 'border-primary bg-white shadow-xl shadow-primary/5' : 'border-slate-100 bg-slate-50/50 hover:border-slate-200'}`}>
+                                                    <Search size={20} className={isCityOpen ? "text-primary" : "text-slate-400"} />
                                                     <input
-                                                        name="city" value={formData.city}
+                                                        name="city" value={formData.cityType === 'global' ? "" : formData.city}
                                                         onFocus={() => formData.cityType === 'normal' && setIsCityOpen(true)}
                                                         onBlur={() => setTimeout(() => setIsCityOpen(false), 200)}
                                                         onChange={(e) => {
                                                             setFormData(prev => ({ ...prev, city: e.target.value, cityType: 'normal' }));
                                                             setIsCityOpen(true);
                                                         }}
-                                                        disabled={formData.cityType !== 'normal'}
-                                                        type="text" placeholder="도시명을 검색하거나 입력해 주세요."
-                                                        className="flex-1 bg-transparent outline-none text-lg font-medium text-slate-800 placeholder:text-slate-300"
+                                                        disabled={formData.cityType === 'global'}
+                                                        type="text" placeholder={formData.cityType === 'global' ? "전세계 대상으로 설정되었습니다." : "도시명을 검색하거나 입력해 주세요."}
+                                                        className="flex-1 bg-transparent outline-none text-base font-medium text-slate-800 placeholder:text-slate-300 disabled:cursor-not-allowed"
                                                     />
-                                                    {formData.cityType === 'normal' && <ChevronDown size={20} className={`text-slate-400 transition-transform duration-300 ${isCityOpen ? 'rotate-180' : ''}`} />}
+                                                    {formData.cityType === 'normal' && <ChevronDown size={18} className={`text-slate-400 transition-transform duration-300 ${isCityOpen ? 'rotate-180' : ''}`} />}
                                                 </div>
 
-                                                {/* Mock Search Results dropdown */}
+                                                {/* Mock Search Results dropdown - Higher Z-index */}
                                                 {isCityOpen && formData.city.length > 0 && formData.cityType === 'normal' && (
-                                                    <div className="absolute top-full left-0 right-0 mt-3 bg-white rounded-3xl border border-surface-border shadow-2xl p-4 z-50 animate-in slide-in-from-top-2 duration-200">
-                                                        <div className="p-3 text-xs font-bold text-slate-400 uppercase tracking-widest px-6">추천 도시</div>
+                                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-surface-border shadow-2xl p-3 z-[100] animate-in slide-in-from-top-2 duration-200">
+                                                        <div className="p-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4">추천 도시</div>
                                                         {['파리', '런던', '도쿄', '뉴욕', '바르셀로나'].filter(c => c.includes(formData.city)).map((c) => (
                                                             <button
                                                                 key={c}
@@ -397,24 +402,24 @@ export default function ManageContent() {
                                                                     setFormData(prev => ({ ...prev, city: c }));
                                                                     setIsCityOpen(false);
                                                                 }}
-                                                                className="w-full flex items-center gap-4 px-6 py-4 hover:bg-slate-50 rounded-2xl transition-colors text-left"
+                                                                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-xl transition-colors text-left"
                                                             >
-                                                                <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
-                                                                    <Globe size={18} />
+                                                                <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400">
+                                                                    <Globe size={16} />
                                                                 </div>
-                                                                <span className="text-lg font-bold text-slate-800">{c}</span>
+                                                                <span className="text-base font-bold text-slate-800">{c}</span>
                                                             </button>
                                                         ))}
                                                         <button
                                                             onMouseDown={() => setIsCityOpen(false)}
-                                                            className="w-full flex items-center gap-4 px-6 py-4 border-t border-slate-50 hover:bg-slate-50 rounded-2xl transition-colors text-left mt-2"
+                                                            className="w-full flex items-center gap-3 px-4 py-3 border-t border-slate-50 hover:bg-slate-50 rounded-xl transition-colors text-left mt-1"
                                                         >
-                                                            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
-                                                                <Plus size={18} />
+                                                            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
+                                                                <Edit2 size={16} />
                                                             </div>
                                                             <div>
-                                                                <span className="text-lg font-bold text-slate-800">&quot;{formData.city}&quot; 직접 입력</span>
-                                                                <p className="text-xs text-slate-400 mt-0.5">새로운 도시로 등록합니다</p>
+                                                                <span className="text-base font-bold text-slate-800">&quot;{formData.city}&quot; 직접 입력</span>
+                                                                <p className="text-[10px] text-slate-400 mt-0.5">새로운 도시로 등록합니다</p>
                                                             </div>
                                                         </button>
                                                     </div>
@@ -431,21 +436,21 @@ export default function ManageContent() {
                                 )}
                             </div>
 
-                            {/* Sticky Footer (Refined Height & Blur) */}
-                            <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.02)] z-[60]">
-                                <div className="max-w-[1400px] mx-auto px-10 py-5 flex justify-end gap-5">
+                            {/* Sticky Footer (Compact Height & Blur) */}
+                            <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.02)] z-50">
+                                <div className="max-w-[1400px] mx-auto px-10 py-3 flex justify-end gap-3">
                                     <button
                                         onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
                                         disabled={currentStep === 1}
-                                        className="px-8 py-4 rounded-2xl font-bold text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-20 disabled:hover:bg-transparent"
+                                        className="px-6 py-3 rounded-xl font-bold text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-20 disabled:hover:bg-transparent text-sm"
                                     >
                                         이전 단계로
                                     </button>
                                     <button
                                         onClick={() => handleSaveAndNext()}
-                                        className="px-12 py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl shadow-xl shadow-slate-900/10 transition-all active:scale-[0.98] flex items-center gap-2"
+                                        className="px-10 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-xl shadow-slate-900/10 transition-all active:scale-[0.98] flex items-center gap-2 text-sm"
                                     >
-                                        {loading ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : null}
+                                        {loading ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : null}
                                         {currentStep === steps.length ? "최종 저장 및 완료" : "저장 및 다음 단계로"}
                                     </button>
                                 </div>

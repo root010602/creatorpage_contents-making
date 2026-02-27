@@ -9,17 +9,17 @@ import {
 } from "lucide-react";
 
 const stats = [
-  { label: "Total Content", value: "1,284", change: "+12.5%", icon: FileText, color: "text-blue-500" },
-  { label: "Active Users", value: "892", change: "+5.2%", icon: Users, color: "text-indigo-500" },
-  { label: "Total Views", value: "45.2K", change: "+18.3%", icon: TrendingUp, color: "text-emerald-500" },
-  { label: "Avg. Engagement", value: "4m 32s", change: "+2.1%", icon: Clock, color: "text-orange-500" },
+  { label: "전체 콘텐츠", value: "1,284", change: "+12.5%", icon: FileText, color: "text-blue-500" },
+  { label: "활성 사용자", value: "892", change: "+5.2%", icon: Users, color: "text-indigo-500" },
+  { label: "전체 조회수", value: "45.2K", change: "+18.3%", icon: TrendingUp, color: "text-emerald-500" },
+  { label: "평균 체류 시간", value: "4분 32초", change: "+2.1%", icon: Clock, color: "text-orange-500" },
 ];
 
 const recentActivity = [
-  { id: 1, type: "Registration", title: "New Travel Guide", user: "Kim Min-su", time: "2 hours ago", status: "Published" },
-  { id: 2, type: "Update", title: "Cafe Recommendations in Seoul", user: "Lee Ji-won", time: "5 hours ago", status: "Draft" },
-  { id: 3, type: "Comment", title: "Review of Jeju Villa", user: "Park Sang-hoo", time: "Yesterday", status: "Published" },
-  { id: 4, type: "Registration", title: "Winter Skiing Tips", user: "Choi Ha-neul", time: "2 days ago", status: "Under Review" },
+  { id: 1, type: "등록", title: "새로운 여행 가이드", user: "김민수", time: "2시간 전", status: "공개됨" },
+  { id: 2, type: "업데이트", title: "서울 카페 추천 리스트", user: "이지원", time: "5시간 전", status: "초안" },
+  { id: 3, type: "댓글", title: "제주 빌라 리뷰", user: "박상후", time: "어제", status: "공개됨" },
+  { id: 4, type: "등록", title: "겨울 스키 팁", user: "최하늘", time: "2일 전", status: "심사 중" },
 ];
 
 export default function Dashboard() {
@@ -27,8 +27,8 @@ export default function Dashboard() {
     <div className="space-y-8 animate-in fade-in duration-700">
       {/* Header */}
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard Overview</h2>
-        <p className="text-slate-500 mt-1">Welcome back! Here&apos;s what&apos;s happening with your content today.</p>
+        <h2 className="text-3xl font-bold tracking-tight">대시보드 개요</h2>
+        <p className="text-slate-500 mt-1">환영합니다! 오늘의 콘텐츠 현황을 확인해 보세요.</p>
       </div>
 
       {/* Stats Grid */}
@@ -57,8 +57,8 @@ export default function Dashboard() {
         {/* Recent Activity */}
         <div className="lg:col-span-2 bg-surface border border-surface-border rounded-2xl shadow-sm overflow-hidden">
           <div className="p-6 border-b border-surface-border flex justify-between items-center">
-            <h3 className="font-semibold text-lg">Recent Content Activity</h3>
-            <button className="text-sm text-primary font-medium hover:underline">View All</button>
+            <h3 className="font-semibold text-lg">최근 콘텐츠 활동</h3>
+            <button className="text-sm text-primary font-medium hover:underline">전체 보기</button>
           </div>
           <div className="divide-y divide-surface-border">
             {recentActivity.map((activity) => (
@@ -73,8 +73,8 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${activity.status === 'Published' ? 'bg-emerald-100 text-emerald-700' :
-                    activity.status === 'Draft' ? 'bg-slate-100 text-slate-600' :
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${activity.status === '공개됨' ? 'bg-emerald-100 text-emerald-700' :
+                    activity.status === '초안' ? 'bg-slate-100 text-slate-600' :
                       'bg-orange-100 text-orange-700'
                     }`}>
                     {activity.status}
@@ -92,29 +92,29 @@ export default function Dashboard() {
         <div className="space-y-6">
           <div className="bg-primary p-6 rounded-2xl text-white relative overflow-hidden group">
             <div className="relative z-10">
-              <h3 className="font-bold text-xl">Upgrade Your Plan</h3>
+              <h3 className="font-bold text-xl">요금제 업그레이드</h3>
               <p className="text-indigo-100 mt-2 text-sm leading-relaxed">
-                Unlock advanced analytics and unlimited content storage.
+                고급 분석 기능과 무제한 콘텐츠 저장 공간을 이용해 보세요.
               </p>
               <button className="mt-6 bg-white text-primary px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-50 transition-colors">
-                View Plans
+                요금제 보기
               </button>
             </div>
             <TrendingUp size={120} className="absolute -right-4 -bottom-4 text-white/10 group-hover:scale-110 transition-transform duration-500" />
           </div>
 
           <div className="bg-surface border border-surface-border p-6 rounded-2xl shadow-sm">
-            <h3 className="font-semibold mb-4">Storage Usage</h3>
+            <h3 className="font-semibold mb-4">스토리지 사용량</h3>
             <div className="space-y-4">
               <div className="flex justify-between text-sm">
-                <span className="text-slate-500">7.2 GB of 10 GB</span>
+                <span className="text-slate-500">10 GB 중 7.2 GB 사용</span>
                 <span className="font-bold">72%</span>
               </div>
               <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                 <div className="h-full bg-primary" style={{ width: '72%' }}></div>
               </div>
               <p className="text-xs text-slate-400">
-                You&apos;re approaching your limit. Consider upgrading for more space.
+                저장 공간이 거의 가득 찼습니다. 더 많은 공간을 위해 업그레이드를 고려해 보세요.
               </p>
             </div>
           </div>
