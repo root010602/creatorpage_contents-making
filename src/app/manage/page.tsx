@@ -5,17 +5,22 @@ import {
     Plus,
     FileText,
     MessageSquare,
+    CheckCircle2,
     BarChart3,
     ChevronLeft,
     ChevronRight,
     Edit2,
-    CheckCircle2,
     Search,
     ChevronDown,
     Globe,
     BookOpen,
     PlayCircle,
-    X
+    X,
+    Map,
+    ImageIcon,
+    Layers,
+    XCircle,
+    Link as LinkIcon
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -130,15 +135,29 @@ export default function ManageContent() {
         cityType: "normal", // normal, none, global
         title: "",
         description: "",
+        museumName: "",
+        museumLink: "",
+        mapType: "",
     });
     const [isCityOpen, setIsCityOpen] = useState(false);
 
     // Dynamic steps configuration
-    const steps = [
-        { id: 1, title: "카테고리 선택" },
-        { id: 2, title: "상세 페이지 제작" },
-        { id: 3, title: "심사 과정" },
-    ];
+    const getSteps = () => {
+        const baseSteps = [{ id: 1, label: '카테고리 선택' }];
+
+        if (formData.contentType === 'audio_video') {
+            baseSteps.push({ id: 2, label: '위치 및 지도 선택' });
+            baseSteps.push({ id: 3, label: '상세 페이지 제작' });
+            baseSteps.push({ id: 4, label: '심사 과정' });
+        } else {
+            // E-book path
+            baseSteps.push({ id: 2, label: '상세 페이지 제작' });
+            baseSteps.push({ id: 3, label: '심사 과정' });
+        }
+        return baseSteps;
+    };
+
+    const steps = getSteps();
 
     // Pagination state (for management list)
     const [currentPage, setCurrentPage] = useState(1);
@@ -172,6 +191,9 @@ export default function ManageContent() {
                         category: formData.category,
                         city: formData.city,
                         description: formData.description,
+                        museum_name: formData.museumName,
+                        museum_link: formData.museumLink,
+                        map_type: formData.mapType,
                         status: 'Draft',
                         updated_at: new Date().toISOString(),
                     }
@@ -249,22 +271,14 @@ export default function ManageContent() {
                                     />
 
                                     {steps.map((step) => (
-                                        <button
-                                            key={step.id}
-                                            onClick={() => handleStepChange(step.id)}
-                                            className="relative z-10 flex flex-col items-center group"
-                                        >
-                                            <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold transition-all duration-300 shadow-lg ${currentStep >= step.id
-                                                ? "bg-primary text-white shadow-primary/30 scale-110"
-                                                : "bg-white text-slate-300 border border-slate-200"
-                                                }`}>
-                                                {step.id}
+                                        <div key={step.id} className="flex flex-col items-center group relative cursor-pointer" onClick={() => handleStepChange(step.id)}>
+                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold transition-all duration-300 ${currentStep === step.id ? "bg-primary text-white scale-110 shadow-lg shadow-primary/30" : currentStep > step.id ? "bg-slate-900 text-white" : "bg-white text-slate-300 border-2 border-slate-100 group-hover:border-slate-200"}`}>
+                                                {currentStep > step.id ? <CheckCircle2 size={24} /> : step.id}
                                             </div>
-                                            <span className={`mt-4 text-sm font-bold whitespace-nowrap transition-colors ${currentStep >= step.id ? "text-primary" : "text-slate-300"
-                                                }`}>
-                                                {step.title}
+                                            <span className={`absolute -bottom-8 whitespace-nowrap text-sm font-bold transition-colors ${currentStep === step.id ? "text-slate-900" : "text-slate-400 group-hover:text-slate-600"}`}>
+                                                {step.label}
                                             </span>
-                                        </button>
+                                        </div>
                                     ))}
                                 </div>
                                 <div className="mt-20 pt-10 border-t border-slate-50 text-slate-500 text-sm space-y-1">
@@ -429,9 +443,122 @@ export default function ManageContent() {
                                     </div>
                                 )}
 
-                                {currentStep > 1 && (
-                                    <div className="min-h-[400px] flex items-center justify-center text-slate-400 italic">
-                                        <p>{steps.find(s => s.id === currentStep)?.title} 단계 준비 중입니다.</p>
+                                {formData.contentType === 'audio_video' && currentStep === 2 && (
+                                    <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                                        {/* 1. 미술관 / 박물관 정보 (Conditional) */}
+                                        {formData.category === 'museum' && (
+                                            <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-8">
+                                                <div className="flex items-center justify-between">
+                                                    <h3 className="text-xl font-bold text-slate-900 italic">미술관 / 박물관 정보*</h3>
+                                                    <span className="text-slate-400 text-sm font-medium">정확한 장소 정보를 입력해 주세요</span>
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                    <div className="space-y-3">
+                                                        <label className="text-sm font-bold text-slate-500 ml-1">기관명</label>
+                                                        <div className="relative group">
+                                                            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">
+                                                                <Search size={18} />
+                                                            </div>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="기관명을 검색하거나 입력하세요"
+                                                                value={formData.museumName}
+                                                                onChange={(e) => setFormData(prev => ({ ...prev, museumName: e.target.value }))}
+                                                                className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all placeholder:text-slate-300 font-medium"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-3">
+                                                        <label className="text-sm font-bold text-slate-500 ml-1">공식 홈페이지 링크 (선택)</label>
+                                                        <div className="relative group">
+                                                            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">
+                                                                <LinkIcon size={18} />
+                                                            </div>
+                                                            <input
+                                                                type="url"
+                                                                placeholder="https://..."
+                                                                value={formData.museumLink}
+                                                                onChange={(e) => setFormData(prev => ({ ...prev, museumLink: e.target.value }))}
+                                                                className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all placeholder:text-slate-300 font-medium"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 2. 지도 활용 (Map Selection Tiles) */}
+                                        <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-8">
+                                            <div className="flex items-center justify-between">
+                                                <div className="space-y-1">
+                                                    <h3 className="text-xl font-bold text-slate-900">지도 활용*</h3>
+                                                    <p className="text-slate-400 text-sm font-medium">여행자가 길을 찾으려면 어떤 지도가 필요한가요?</p>
+                                                </div>
+                                                <button className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors">예시 보기</button>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                {[
+                                                    { id: 'google_map', label: '외부 구글맵', desc: '팔라티노 언덕 투어, 폼페이 투어 등 명소 가이드', icon: Map },
+                                                    { id: 'image_map', label: '내부 이미지 지도', desc: '대영 박물관, 우피치 미술관 등 실내 가이드', icon: ImageIcon },
+                                                    { id: 'both', label: '외부, 내부 모두 사용', desc: '베르사유 투어, 가우디 반일투어 등 복합 가이드', icon: Layers },
+                                                    { id: 'none', label: '필요하지 않음', desc: '여행이야기, 가이드북, 인문학 콘텐츠 등', icon: XCircle }
+                                                ].map((map) => (
+                                                    <button
+                                                        key={map.id}
+                                                        onClick={() => setFormData(prev => ({ ...prev, mapType: map.id }))}
+                                                        className={`flex gap-5 p-6 rounded-[24px] border-2 text-left transition-all duration-300 relative ${formData.mapType === map.id
+                                                            ? "border-primary bg-primary/[0.03] shadow-lg shadow-primary/5"
+                                                            : "border-slate-100 bg-slate-50/30 hover:border-slate-200 hover:bg-white"
+                                                            }`}
+                                                    >
+                                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${formData.mapType === map.id ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-white text-slate-400 border border-slate-100 shadow-sm"}`}>
+                                                            <map.icon size={22} />
+                                                        </div>
+                                                        <div className="flex-1 pr-6">
+                                                            <span className={`block text-lg font-bold mb-1 ${formData.mapType === map.id ? "text-primary" : "text-slate-800"}`}>{map.label}</span>
+                                                            <span className="text-sm text-slate-400 leading-snug">{map.desc}</span>
+                                                        </div>
+                                                        {formData.mapType === map.id && (
+                                                            <div className="absolute top-4 right-4 text-primary animate-in zoom-in-50 duration-300">
+                                                                <CheckCircle2 size={24} fill="currentColor" stroke="white" />
+                                                            </div>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            <div className="bg-slate-50/80 rounded-2xl p-6 space-y-2">
+                                                <p className="text-sm text-slate-600 font-medium flex items-center gap-2">
+                                                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
+                                                    여행자가 길을 찾으려면 어떤 지도가 필요한가요?
+                                                </p>
+                                                <p className="text-sm text-slate-600 font-medium flex items-center gap-2">
+                                                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
+                                                    예시를 통해 자세히 알아보세요.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {((currentStep === 3 && formData.contentType === 'audio_video') || (currentStep === 2 && formData.contentType === 'electronic_book')) && (
+                                    <div className="bg-white rounded-[40px] border border-surface-border shadow-sm p-12 animate-in fade-in slide-in-from-right-4 duration-500">
+                                        <h3 className="text-2xl font-bold text-slate-900 mb-6">상세 페이지 제작</h3>
+                                        <p className="text-slate-500 text-lg leading-relaxed">
+                                            콘텐츠의 목차, 상세 설명, 미리보기 파일 등을 업로드하는 단계입니다.<br />
+                                            현재 기능 구현 준비 중입니다. 잠시만 기다려 주세요!
+                                        </p>
+                                    </div>
+                                )}
+
+                                {currentStep === steps.length && currentStep > 2 && (
+                                    <div className="bg-white rounded-[40px] border border-surface-border shadow-sm p-12 animate-in fade-in slide-in-from-right-4 duration-500">
+                                        <h3 className="text-2xl font-bold text-slate-900 mb-6">심사 과정 안내</h3>
+                                        <p className="text-slate-500 text-lg leading-relaxed">
+                                            제출하신 콘텐츠는 3~5 영업일 이내에 담당자의 심사를 거쳐 결과가 안내됩니다.<br />
+                                            심사 통과 시 투어라이브 앱에 즉시 공개됩니다.
+                                        </p>
                                     </div>
                                 )}
                             </div>
