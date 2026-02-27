@@ -38,6 +38,24 @@ interface ContentItem {
     author: string;
 }
 
+interface ContentPayload {
+    id?: string | number;
+    title: string;
+    type: string;
+    category: string;
+    city: string;
+    description: string;
+    museum_name: string;
+    museum_link: string;
+    map_type: string;
+    price: string | null;
+    thumbnail_url: string | null;
+    gallery_urls: string[] | null;
+    epub_url: string | null;
+    status: string;
+    updated_at: string;
+}
+
 // Mock data (6 items to test pagination)
 const initialContents: ContentItem[] = [
     {
@@ -147,6 +165,7 @@ export default function ManageContent() {
         epubUrl: "",
         epubFileName: "",
     });
+    const [contentId, setContentId] = useState<string | number | null>(null);
     const [isCityOpen, setIsCityOpen] = useState(false);
 
     // Dynamic steps configuration
@@ -229,39 +248,47 @@ export default function ManageContent() {
         setLoading(true);
         try {
             // Data Persistence Logic (Supabase Upsert)
-            const { error } = await supabase
+            const payload: ContentPayload = {
+                title: formData.title || "무제 콘텐츠",
+                type: formData.contentType,
+                category: formData.category,
+                city: formData.city,
+                description: formData.description,
+                museum_name: formData.museumName,
+                museum_link: formData.museumLink,
+                map_type: formData.mapType,
+                // Step 3 fields: Send null if empty to satisfy numeric/array constraints
+                price: formData.price ? formData.price.replace(/[^0-9]/g, '') : null,
+                thumbnail_url: formData.thumbnailUrl || null,
+                gallery_urls: formData.galleryUrls.length > 0 ? formData.galleryUrls : null,
+                epub_url: formData.epubUrl || null,
+                status: 'Draft',
+                updated_at: new Date().toISOString(),
+            };
+
+            if (contentId) {
+                payload.id = contentId;
+            }
+
+            const { data, error } = await supabase
                 .from('contents')
-                .upsert([
-                    {
-                        // id: item?.id, 
-                        title: formData.title || "무제 콘텐츠",
-                        type: formData.contentType,
-                        category: formData.category,
-                        city: formData.city,
-                        description: formData.description,
-                        museum_name: formData.museumName,
-                        museum_link: formData.museumLink,
-                        map_type: formData.mapType,
-                        // Step 3 fields
-                        price: formData.price.replace(/[^0-9]/g, ''),
-                        thumbnail_url: formData.thumbnailUrl,
-                        gallery_urls: formData.galleryUrls,
-                        epub_url: formData.epubUrl,
-                        status: 'Draft',
-                        updated_at: new Date().toISOString(),
-                    }
-                ]);
+                .upsert([payload])
+                .select();
 
             if (error) throw error;
+
+            if (data && data[0]) {
+                setContentId(data[0].id);
+            }
 
             if (nextStep) {
                 setCurrentStep(nextStep);
             } else {
                 setCurrentStep((prev) => Math.min(prev + 1, steps.length));
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Save error:", error);
-            alert("저장 중 오류가 발생했습니다.");
+            alert(`저장 중 오류가 발생했습니다: ${error.message || "알 수 없는 오류"}`);
         } finally {
             setLoading(false);
         }
