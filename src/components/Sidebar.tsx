@@ -23,7 +23,7 @@ export function Sidebar() {
             <div className="p-6">
                 <h1 className="text-xl font-bold italic">
                     <span className="text-primary">Tourlive</span>
-                    <span className="text-slate-400 ml-1 text-sm not-italic font-medium">관리자</span>
+                    <span className="text-slate-400 ml-1 text-sm not-italic font-medium">creator</span>
                 </h1>
             </div>
 

@@ -308,16 +308,20 @@ export default function ManageContent() {
                             </div>
                         </div>
                     ) : (
-                        /* Empty View (White Background) */
+                        /* Empty View (Refined) */
                         <div className="flex items-center justify-center min-h-[70vh] animate-in zoom-in-95 duration-500">
                             <div className="bg-white p-16 rounded-[48px] border border-surface-border shadow-2xl flex flex-col items-center text-center max-w-xl w-full">
-                                <div className="w-28 h-28 bg-primary/10 rounded-full flex items-center justify-center mb-10">
-                                    <Plus size={48} className="text-primary" />
+                                <div className="w-32 h-32 bg-primary/10 rounded-full flex items-center justify-center mb-10 relative">
+                                    <div className="absolute inset-0 bg-primary/5 rounded-full animate-ping duration-[3s]" />
+                                    <FileText size={56} className="text-primary relative z-10" />
+                                    <div className="absolute -bottom-2 -right-2 bg-white p-2 rounded-full shadow-lg border border-surface-border">
+                                        <Plus size={20} className="text-primary" />
+                                    </div>
                                 </div>
-                                <h3 className="text-3xl font-bold text-slate-900 mb-4">등록된 콘텐츠가 없습니다.</h3>
-                                <p className="text-slate-500 mb-12 text-lg leading-relaxed">
-                                    투어라이브 크리에이터가 되어 첫 번째 콘텐츠를 등록해 보세요!<br />
-                                    정성스러운 가이드가 수많은 여행자들에게 닿을 수 있습니다.
+                                <h3 className="text-3xl font-bold text-slate-900 mb-4 tracking-tight">아직 등록된 콘텐츠가 없어요</h3>
+                                <p className="text-slate-500 mb-12 text-lg leading-relaxed whitespace-pre-wrap">
+                                    콘텐츠 등록 후 심사를 거쳐 공개돼요{"\n"}
+                                    지금 첫 콘텐츠를 만들어보세요
                                 </p>
                                 <button
                                     onClick={() => setView("modal")}
@@ -341,31 +345,34 @@ export default function ManageContent() {
                 )}
             </main>
 
-            {/* Guidance Modal Overlay */}
+            {/* Guidance Modal Overlay (Refined) */}
             {view === "modal" && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-white w-full max-w-md rounded-[40px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-surface-border">
-                        <div className="p-8 border-b border-surface-border flex justify-between items-center bg-slate-50/50">
-                            <h3 className="text-xl font-bold text-slate-900">&lt;콘텐츠 계약서 안내&gt;</h3>
+                    <div className="bg-white w-full max-w-lg rounded-[48px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-surface-border">
+                        <div className="p-8 border-b border-surface-border flex flex-col items-center relative bg-slate-50/30">
                             <button
                                 onClick={() => setView("base")}
-                                className="p-2 hover:bg-slate-200 rounded-full transition-colors"
+                                className="absolute right-8 top-8 p-2 hover:bg-slate-200 rounded-full transition-colors"
                             >
                                 <X size={24} className="text-slate-500" />
                             </button>
+                            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                                <FileText size={32} className="text-primary" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-slate-900">&lt;콘텐츠 계약서 안내&gt;</h3>
                         </div>
-                        <div className="p-10">
-                            <p className="text-slate-600 text-lg leading-relaxed mb-4">
+                        <div className="p-12 text-center space-y-6">
+                            <p className="text-slate-600 text-lg leading-relaxed">
                                 관련 내용은 계정 정보에 작성하신 이메일로 발송됩니다.
                             </p>
-                            <p className="text-slate-900 font-bold text-lg leading-relaxed">
+                            <p className="text-slate-900 font-bold text-xl leading-relaxed">
                                 사인 및 답신 거부 시 콘텐츠 업로드에 차질이 생길 수 있음을 고지합니다.
                             </p>
                         </div>
-                        <div className="p-8 bg-slate-50/50 border-t border-surface-border">
+                        <div className="p-8 bg-slate-50/30 border-t border-surface-border">
                             <button
                                 onClick={() => setView("form")}
-                                className="w-full py-5 bg-primary hover:bg-primary/90 text-white font-bold text-lg rounded-[24px] shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
+                                className="w-full py-6 bg-primary hover:bg-primary/90 text-white font-bold text-xl rounded-[32px] shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
                             >
                                 네, 확인했습니다
                             </button>
