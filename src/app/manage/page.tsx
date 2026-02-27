@@ -286,9 +286,10 @@ export default function ManageContent() {
             } else {
                 setCurrentStep((prev) => Math.min(prev + 1, steps.length));
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Save error:", error);
-            alert(`저장 중 오류가 발생했습니다: ${error.message || "알 수 없는 오류"}`);
+            const errMsg = (error as { message?: string })?.message || "알 수 없는 오류";
+            alert(`저장 중 오류가 발생했습니다: ${errMsg}`);
         } finally {
             setLoading(false);
         }
