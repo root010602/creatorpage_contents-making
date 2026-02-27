@@ -23,28 +23,30 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function checkColumns() {
-    const columnsToTest = [
-        'title', 'type', 'category', 'city', 'description',
-        'museum_name', 'museum_link', 'map_type', 'status', 'updated_at'
-    ];
+async function testUpsert() {
+    console.log('Testing full "upsert" on "contents" table...');
+    const { data, error } = await supabase
+        .from('contents')
+        .upsert([
+            {
+                title: "Debug Save Test",
+                type: "audio_video",
+                category: "museum",
+                city: "Paris",
+                description: "Testing RLS and primary key logic",
+                museum_name: "Louvre",
+                museum_link: "https://louvre.fr",
+                map_type: "image_map",
+                status: 'Draft',
+                updated_at: new Date().toISOString(),
+            }
+        ]);
 
-    console.log('Testing individual columns in "contents" table...');
-
-    for (const col of columnsToTest) {
-        const { error } = await supabase
-            .from('contents')
-            .select(col)
-            .limit(1);
-
-        if (error && error.code === 'PGRST204') {
-            console.log(`[MISSING] Column "${col}" is not found.`);
-        } else if (error) {
-            console.log(`[ERROR] Column "${col}": ${error.message}`);
-        } else {
-            console.log(`[EXISTS] Column "${col}" exists.`);
-        }
+    if (error) {
+        console.error('UPSERT FAILED:', JSON.stringify(error, null, 2));
+    } else {
+        console.log('UPSERT SUCCESSFUL:', data);
     }
 }
 
-checkColumns();
+testUpsert();
