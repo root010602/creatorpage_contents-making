@@ -18,22 +18,15 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-interface ContentPayload {
-    id?: string | number;
+interface Track {
+    id: number;
+    spot_id: number | string | null;
     title: string;
-    type: string;
-    category: string;
-    city: string;
     description: string;
-    museum_name: string;
-    museum_link: string;
-    map_type: string;
-    price: string | null;
-    thumbnail_url: string | null;
-    gallery_urls: string[] | null;
-    epub_url: string | null;
-    status: string;
-    updated_at: string;
+    audio_url: string;
+    script: string;
+    is_free: boolean;
+    order_index: number;
 }
 
 interface ContentRegistrationFormProps {
@@ -74,7 +67,7 @@ export default function ContentRegistrationForm({ onBack, onList, onRefresh }: C
             { id: 1, spot_id: 1, title: "트랙명 1", description: "", audio_url: "", script: "", is_free: false, order_index: 1 },
             { id: 2, spot_id: 2, title: "트랙명 2", description: "", audio_url: "", script: "이미 작성된 트랙 2의 예시 스크립트입니다...", is_free: false, order_index: 2 },
             { id: 3, spot_id: 2, title: "트랙명 3", description: "", audio_url: "", script: "", is_free: false, order_index: 3 }
-        ] as any[]
+        ] as Track[]
     });
     const [contentId, setContentId] = useState<string | number | null>(null);
     const [isCityOpen, setIsCityOpen] = useState(false);
@@ -192,7 +185,7 @@ export default function ContentRegistrationForm({ onBack, onList, onRefresh }: C
             }
 
             // 2. Save Spots sequentially
-            const spotIdMap: Record<number, string> = {};
+            const spotIdMap: Record<string | number, string> = {};
             if (formData.spots.length > 0) {
                 const spotsToInsert = formData.spots.map(s => ({
                     content_id: currentContentId,
@@ -231,6 +224,10 @@ export default function ContentRegistrationForm({ onBack, onList, onRefresh }: C
                     .insert(tracksToInsert);
 
                 if (tracksError) throw tracksError;
+            }
+
+            if (onRefresh) {
+                await onRefresh();
             }
 
             return true;
@@ -659,7 +656,7 @@ export default function ContentRegistrationForm({ onBack, onList, onRefresh }: C
                                         <div className="group relative flex items-center gap-6 p-6 rounded-3xl border-2 border-primary/20 bg-primary/5 hover:border-primary/40 transition-all">
                                             <div className="w-32 h-20 rounded-xl bg-white border border-slate-100 overflow-hidden flex items-center justify-center text-slate-300">
                                                 {formData.thumbnailPreview ? (
-                                                    <img src={formData.thumbnailPreview} className="w-full h-full object-cover" alt="" />
+                                                    <img src={formData.thumbnailPreview} className="w-full h-full object-cover" alt="Thumbnail Preview" />
                                                 ) : <ImageIcon size={32} />}
                                             </div>
                                             <div className="flex-1">
@@ -688,7 +685,7 @@ export default function ContentRegistrationForm({ onBack, onList, onRefresh }: C
                                         <div className="group relative flex items-center gap-6 p-6 rounded-3xl border-2 border-slate-100 bg-slate-50/50 hover:border-slate-200 transition-all">
                                             <div className="w-32 h-20 rounded-xl bg-white border border-slate-100 overflow-hidden flex items-center justify-center text-slate-300">
                                                 {formData.galleryPreviews[0] ? (
-                                                    <img src={formData.galleryPreviews[0]} className="w-full h-full object-cover" alt="" />
+                                                    <img src={formData.galleryPreviews[0]} className="w-full h-full object-cover" alt="Gallery Preview 1" />
                                                 ) : <ImageIcon size={32} />}
                                             </div>
                                             <div className="flex-1">
@@ -720,7 +717,7 @@ export default function ContentRegistrationForm({ onBack, onList, onRefresh }: C
                                         <div className="group relative flex items-center gap-6 p-6 rounded-3xl border-2 border-slate-100 bg-slate-50/50 hover:border-slate-200 transition-all">
                                             <div className="w-32 h-20 rounded-xl bg-white border border-slate-100 overflow-hidden flex items-center justify-center text-slate-300">
                                                 {formData.galleryPreviews[1] ? (
-                                                    <img src={formData.galleryPreviews[1]} className="w-full h-full object-cover" alt="" />
+                                                    <img src={formData.galleryPreviews[1]} className="w-full h-full object-cover" alt="Gallery Preview 2" />
                                                 ) : <ImageIcon size={32} />}
                                             </div>
                                             <div className="flex-1">

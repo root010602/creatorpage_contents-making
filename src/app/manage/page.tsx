@@ -5,20 +5,11 @@ import {
     Plus,
     FileText,
     MessageSquare,
-    CheckCircle2,
     BarChart3,
     ChevronLeft,
     ChevronRight,
     Edit2,
-    Search,
-    ChevronDown,
-    Globe,
-    BookOpen,
-    PlayCircle,
-    X,
-    ImageIcon,
-    Layers,
-    XCircle
+    X
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import ContentRegistrationForm from "@/components/ContentRegistrationForm";
@@ -37,111 +28,34 @@ interface ContentItem {
     author: string;
 }
 
-interface ContentPayload {
-    id?: string | number;
-    title: string;
-    type: string;
-    category: string;
-    city: string;
-    description: string;
-    museum_name: string;
-    museum_link: string;
-    map_type: string;
+// Proper types for database schema
+interface DBContent {
+    id: string;
+    title: string | null;
+    type: string | null;
+    category: string | null;
+    city: string | null;
+    description: string | null;
+    museum_name: string | null;
+    museum_link: string | null;
+    map_type: string | null;
     price: string | null;
     thumbnail_url: string | null;
     gallery_urls: string[] | null;
     epub_url: string | null;
-    status: string;
-    updated_at: string;
+    status: string | null;
+    size: string | null;
+    created_at: string;
+    registered_at: string | null;
 }
 
 // Mock data (6 items to test pagination)
-const initialContents: ContentItem[] = [
-    {
-        id: 1,
-        thumbnail: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=100&h=100&fit=crop",
-        title: "파리 에펠탑 야경 투어",
-        description: "낭만적인 파리의 밤을 즐기는 최고의 방법",
-        created_at: "2024-02-20",
-        registered_at: "2024-02-21",
-        size: "128 MB",
-        review_status: "심사 완료",
-        sales_status: "판매 중",
-        category: "여행",
-        author: "홍길동"
-    },
-    {
-        id: 2,
-        thumbnail: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=100&h=100&fit=crop",
-        title: "도쿄 시부야 맛집 정복",
-        description: "현지인들만 아는 숨은 맛집 리스트",
-        created_at: "2024-02-22",
-        registered_at: "2024-02-23",
-        size: "85 MB",
-        review_status: "심사 중",
-        sales_status: "판매 중지",
-        category: "음식",
-        author: "김철수"
-    },
-    {
-        id: 3,
-        thumbnail: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=100&h=100&fit=crop",
-        title: "런던 브리티시 뮤지엄 가이드",
-        description: "대영박물관 핵심 유물 10개 완벽 해설",
-        created_at: "2024-02-24",
-        registered_at: "2024-02-25",
-        size: "210 MB",
-        review_status: "심사 대기",
-        sales_status: "판매 중지",
-        category: "역사",
-        author: "이영희"
-    },
-    {
-        id: 4,
-        thumbnail: "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=100&h=100&fit=crop",
-        title: "뉴욕 센트럴 파크 산책",
-        description: "도심 속 숲에서의 힐링 시간",
-        created_at: "2024-02-25",
-        registered_at: "2024-02-26",
-        size: "156 MB",
-        review_status: "심사 완료",
-        sales_status: "판매 중",
-        category: "여행",
-        author: "박명수"
-    },
-    {
-        id: 5,
-        thumbnail: "https://images.unsplash.com/photo-1550338861-b7cfeaf8ffd8?w=100&h=100&fit=crop",
-        title: "로마 바티칸 반나절 투어",
-        description: "미켈란젤로의 천장화를 만나는 감동",
-        created_at: "2024-02-26",
-        registered_at: "2024-02-27",
-        size: "320 MB",
-        review_status: "심사 완료",
-        sales_status: "판매 중",
-        category: "역사",
-        author: "정준하"
-    },
-    {
-        id: 6,
-        thumbnail: "https://images.unsplash.com/photo-1528728329032-2972f65dfb3f?w=100&h=100&fit=crop",
-        title: "베를린 장벽의 역사",
-        description: "분단의 아픔과 통일의 기쁨 스토리",
-        created_at: "2024-02-27",
-        registered_at: "2024-02-27",
-        size: "190 MB",
-        review_status: "심사 대기",
-        sales_status: "판매 중지",
-        category: "역사",
-        author: "유재석"
-    },
-];
+// initialContents removed as it was unused
 
 export default function ManageContent() {
     const [activeTab, setActiveTab] = useState("management");
     const [view, setView] = useState("base"); // base, form, modal
     const [contents, setContents] = useState<ContentItem[]>([]);
-    const [loading, setLoading] = useState(false);
 
     // Pagination state (for management list)
     const [currentPage, setCurrentPage] = useState(1);
@@ -152,7 +66,6 @@ export default function ManageContent() {
     const currentItems = contents.slice(indexOfFirstItem, indexOfLastItem);
 
     const fetchContents = async () => {
-        setLoading(true);
         try {
             const { data, error } = await supabase
                 .from('contents')
@@ -162,7 +75,7 @@ export default function ManageContent() {
             if (error) throw error;
 
             if (data) {
-                const mappedData: ContentItem[] = data.map((item: any) => ({
+                const mappedData: ContentItem[] = (data as DBContent[]).map((item) => ({
                     id: item.id || '',
                     thumbnail: item.thumbnail_url || 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=100&h=100&fit=crop',
                     title: item.title || '무제 콘텐츠',
@@ -170,7 +83,7 @@ export default function ManageContent() {
                     created_at: item.created_at ? new Date(item.created_at).toISOString().split('T')[0] : '',
                     registered_at: item.registered_at ? new Date(item.registered_at).toISOString().split('T')[0] : '-',
                     size: item.size || '0 MB',
-                    review_status: (item.status === 'Draft' ? '심사 대기' : '심사 완료') as any,
+                    review_status: (item.status === 'Draft' ? '심사 대기' : '심사 완료') as ContentItem['review_status'],
                     sales_status: '판매 중',
                     category: item.category || '',
                     author: '작가'
@@ -179,8 +92,6 @@ export default function ManageContent() {
             }
         } catch (error) {
             console.error("Fetch error:", error);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -265,7 +176,7 @@ export default function ManageContent() {
                                                         <td className="px-6 py-5">
                                                             <div className="flex justify-center">
                                                                 {item.thumbnail ? (
-                                                                    <img src={item.thumbnail} alt="" className="w-16 h-16 rounded-xl object-cover border border-surface-border shadow-sm" />
+                                                                    <img src={item.thumbnail} alt={item.title} className="w-16 h-16 rounded-xl object-cover border border-surface-border shadow-sm" />
                                                                 ) : (
                                                                     <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center border border-surface-border">
                                                                         <FileText size={24} className="text-slate-300" />
