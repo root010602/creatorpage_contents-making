@@ -4,8 +4,6 @@ import React, { useState } from "react";
 import {
     Plus,
     FileText,
-    MessageSquare,
-    BarChart3,
     ChevronLeft,
     ChevronRight,
     Edit2,
@@ -102,34 +100,11 @@ export default function ManageContent() {
     const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
 
-    const tabs = [
-        { id: "management", label: "콘텐츠 등록 및 수정", icon: FileText },
-        { id: "reviews", label: "후기 관리", icon: MessageSquare },
-        { id: "stats", label: "수익 통계", icon: BarChart3 },
-    ];
+
 
     return (
-        <div className="flex flex-col min-h-screen bg-[#fffcf8] -m-8">
-            {/* Top Navigation Bar */}
-            <div className="bg-white border-b border-surface-border sticky top-0 z-10 px-8 py-4">
-                <div className="flex items-center justify-between max-w-7xl mx-auto">
-                    <div className="flex gap-8">
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-2 pb-4 pt-2 px-1 text-sm font-bold transition-all border-b-2 relative -mb-4 ${activeTab === tab.id
-                                    ? "text-primary border-primary"
-                                    : "text-slate-400 border-transparent hover:text-slate-600"
-                                    }`}
-                            >
-                                <tab.icon size={18} />
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
+        <div className="flex flex-col min-h-screen bg-slate-100/50 -m-8">
+
 
             {/* Main Content Area */}
             <main className="flex-1 p-8 max-w-[1400px] mx-auto w-full">
