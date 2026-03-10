@@ -14,16 +14,10 @@ import {
     ImageIcon,
     Layers,
     XCircle,
-    Map,
-    Folder,
-    FileAudio,
-    Trash2,
-    Save,
-    UploadCloud,
-    Settings2,
-    GripVertical
+    Map
 } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import Image from "next/image";
 import { TopNav } from "./TopNav";
 
 interface Track {
@@ -53,12 +47,11 @@ interface Chapter {
 }
 
 interface ContentRegistrationFormProps {
-    onBack: () => void;
     onList: () => void;
     onRefresh: () => Promise<void>;
 }
 
-function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrationFormProps) {
+function ContentRegistrationForm({ onList, onRefresh }: ContentRegistrationFormProps) {
     const [loading, setLoading] = useState(false);
 
     // Multi-step Registration State
@@ -102,7 +95,6 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
     const [contentId, setContentId] = useState<string | number | null>(null);
     const [isCityOpen, setIsCityOpen] = useState(false);
     const [activeTrackId, setActiveTrackId] = useState<number | string>(2);
-    const [activeChapterId, setActiveChapterId] = useState<number | string>(1);
     const [editingId, setEditingId] = useState<string | number | null>(null);
     const [editingName, setEditingName] = useState("");
 
@@ -172,7 +164,6 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
             chapters: prev.chapters.map(c => c.id === chapterId ? { ...c, tracks: [...c.tracks, newTrack] } : c)
         }));
         setActiveTrackId(newTrack.id);
-        setActiveChapterId(chapterId);
     };
 
     const deleteTrack = (chapterId: string | number, trackId: string | number) => {
@@ -955,7 +946,7 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                                                                 return (
                                                                     <div
                                                                         key={track.id}
-                                                                        onClick={() => { setActiveTrackId(track.id); setActiveChapterId(chapter.id); }}
+                                                                        onClick={() => { setActiveTrackId(track.id); }}
                                                                         className={`group relative flex items-center justify-between gap-3 px-4 py-2.5 rounded-2xl cursor-pointer transition-all ${isActive
                                                                             ? "bg-white border-2 border-[#F47521] shadow-lg shadow-[#F47521]/10"
                                                                             : "bg-white border border-slate-50 hover:border-slate-200"
@@ -1120,7 +1111,7 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                                                     <div className="flex items-center gap-8 p-8 rounded-[32px] border-2 border-slate-50 bg-[#F8F9FA]/50 hover:bg-white hover:border-slate-100 transition-all duration-300">
                                                         <div className="w-56 h-32 rounded-2xl bg-white border border-slate-100 overflow-hidden flex items-center justify-center text-slate-300 shadow-sm">
                                                             {getCurrentTrack()?.image_url ? (
-                                                                <img src={getCurrentTrack()?.image_url} className="w-full h-full object-cover" alt="Track Preview" />
+                                                                <Image src={getCurrentTrack()?.image_url || ""} width={224} height={128} className="w-full h-full object-cover" alt="Track Preview" />
                                                             ) : <ImageIcon size={40} />}
                                                         </div>
                                                         <div className="flex flex-col gap-4">
@@ -1153,7 +1144,7 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                                                                     <input
                                                                         type="text"
                                                                         placeholder={field.placeholder}
-                                                                        value={(getCurrentTrack() as any)?.[field.key] || ""}
+                                                                        value={((getCurrentTrack() as unknown as Record<string, string | number>)?.[field.key]) || ""}
                                                                         onChange={(e) => updateTrack({ [field.key]: e.target.value })}
                                                                         className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 bg-white focus:border-[#F47521] focus:shadow-xl focus:shadow-[#F47521]/5 outline-none transition-all text-base font-medium placeholder:text-slate-300"
                                                                     />
@@ -1246,7 +1237,7 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                                             <div className="group relative flex items-center gap-6 p-6 rounded-3xl border-2 border-primary/20 bg-primary/5 hover:border-primary/40 transition-all">
                                                 <div className="w-32 h-20 rounded-xl bg-white border border-slate-100 overflow-hidden flex items-center justify-center text-slate-300">
                                                     {formData.thumbnailPreview ? (
-                                                        <img src={formData.thumbnailPreview} className="w-full h-full object-cover" alt="Thumbnail Preview" />
+                                                        <Image src={formData.thumbnailPreview} width={128} height={80} className="w-full h-full object-cover" alt="Thumbnail Preview" />
                                                     ) : <ImageIcon size={32} />}
                                                 </div>
                                                 <div className="flex-1">

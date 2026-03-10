@@ -114,7 +114,7 @@ export default function ManageContent() {
             <main className="flex-1 p-8 max-w-[1400px] mx-auto w-full">
                 {view === "form" ? (
                     /* Multi-Step Registration Form View */
-                    <ContentRegistrationForm onBack={() => setView("base")} onList={() => setView("list")} onRefresh={fetchContents} />
+                    <ContentRegistrationForm onList={() => setView("list")} onRefresh={fetchContents} />
                 ) : (
                     contents.length > 0 ? (
                         /* Content List Table View */
