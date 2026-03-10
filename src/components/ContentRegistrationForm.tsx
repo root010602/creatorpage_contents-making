@@ -97,6 +97,7 @@ function ContentRegistrationForm({ onList, onRefresh }: ContentRegistrationFormP
     const [activeTrackId, setActiveTrackId] = useState<number | string>(2);
     const [editingId, setEditingId] = useState<string | number | null>(null);
     const [editingName, setEditingName] = useState("");
+    const [isAgreed, setIsAgreed] = useState(false);
 
     // Helper to check if the current category requires a map
     const isMapCategory = (catId: string) => {
@@ -109,7 +110,8 @@ function ContentRegistrationForm({ onList, onRefresh }: ContentRegistrationFormP
             return [
                 { id: 1, label: '카테고리 선택' },
                 { id: 5, label: '상세 페이지 제작' },
-                { id: 6, label: '등록 완료' }
+                { id: 6, label: '웹 배포 및 심사 요청' },
+                { id: 7, label: '등록 완료' }
             ];
         }
 
@@ -120,7 +122,8 @@ function ContentRegistrationForm({ onList, onRefresh }: ContentRegistrationFormP
             { id: 3, label: '위치 설정' },
             { id: 4, label: '트랙 제작' },
             { id: 5, label: '상세 페이지 제작' },
-            { id: 6, label: '등록 완료' }
+            { id: 6, label: '웹 배포 및 심사 요청' },
+            { id: 7, label: '등록 완료' }
         ];
     };
 
@@ -370,10 +373,9 @@ function ContentRegistrationForm({ onList, onRefresh }: ContentRegistrationFormP
     };
 
     const handleSaveAndNext = async (nextStep?: number) => {
-        // If final step (Step 5 for both), call saveData
-        const isFinalStep = currentStep === 5;
+        const isDetailPageStep = currentStep === 5;
 
-        if (isFinalStep) {
+        if (isDetailPageStep) {
             // Validation check (all fields required)
             if (!formData.title || !formData.description || !formData.price || !formData.thumbnailUrl) {
                 alert("모든 필수 항목을 입력해 주세요 (콘텐츠 이름, 소개글, 가격, 대표 이미지).");
@@ -381,6 +383,13 @@ function ContentRegistrationForm({ onList, onRefresh }: ContentRegistrationFormP
             }
             const success = await saveData();
             if (!success) return;
+        }
+
+        if (currentStep === 6) {
+            if (!isAgreed) {
+                alert("필수 확인 사항에 동의해 주세요.");
+                return;
+            }
         }
 
         if (nextStep) {
@@ -410,8 +419,10 @@ function ContentRegistrationForm({ onList, onRefresh }: ContentRegistrationFormP
                 setCurrentStep(5);
             } else if (currentStep === 5) {
                 setCurrentStep(6);
+            } else if (currentStep === 6) {
+                setCurrentStep(7);
             } else {
-                setCurrentStep((prev) => Math.min(prev + 1, 6));
+                setCurrentStep((prev) => Math.min(prev + 1, 7));
             }
         }
     };
@@ -426,7 +437,7 @@ function ContentRegistrationForm({ onList, onRefresh }: ContentRegistrationFormP
                         콘텐츠 제작 및 등록
                     </h2>
                     {/* Stepper Navigation Card */}
-                    {currentStep < 6 && (
+                    {currentStep < 7 && (
                         <div className="bg-white p-10 md:p-12 rounded-[40px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white mb-10 overflow-hidden max-w-[1400px] mx-auto">
                             <div className="relative flex justify-between items-center max-w-4xl mx-auto">
                                 <div className="absolute top-[32px] left-0 w-full h-[3px] bg-slate-100 -z-0 rounded-full" />
@@ -1298,15 +1309,97 @@ function ContentRegistrationForm({ onList, onRefresh }: ContentRegistrationFormP
                             )}
 
                             {currentStep === 6 && (
+                                <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500">
+                                    {/* 1. 웹 배포 미리보기 */}
+                                    <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-8">
+                                        <div className="flex flex-col space-y-2">
+                                            <h3 className="text-xl font-bold text-slate-900">웹 배포 미리보기</h3>
+                                            <p className="text-slate-400 text-base font-normal">심사 요청 전, 여행자들이 보게 될 실제 웹 화면을 미리 확인해 보세요.</p>
+                                        </div>
+
+                                        <div className="flex items-center justify-between p-8 rounded-[32px] bg-slate-50/50 border-2 border-slate-50">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                                                    <Globe size={24} />
+                                                </div>
+                                                <p className="text-slate-600 font-medium">실제 배포 시 어떻게 보일지 궁금하신가요?</p>
+                                            </div>
+                                            <button
+                                                onClick={() => window.open('https://tourlive.co.kr/preview', '_blank')}
+                                                className="px-8 py-3.5 bg-white border-2 border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-slate-300 text-base font-bold text-slate-700 transition-all flex items-center gap-2"
+                                            >
+                                                <PlayCircle size={18} className="text-primary" />
+                                                한 번 배포해보기
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* 2. 심사 요청 가이드라인 */}
+                                    <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-10">
+                                        <div className="space-y-4">
+                                            <h3 className="text-xl font-bold text-slate-900">심사 요청 전 반드시 확인하세요</h3>
+                                            <p className="text-[#F47521] text-base font-bold">아래 금지 항목이 포함된 콘텐츠는 심사 반려 또는 제재 대상이 됩니다.</p>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 gap-4 pl-2">
+                                            {[
+                                                { text: "제 3자의 권리(초상권, 저작권 등)를 침해하거나 상업적으로 이용 불가능함", highlights: ["초상권, 저작권 등", "침해"] },
+                                                { text: "부적절한 언어 (욕설, 혐오 표현, 비방 등)" },
+                                                { text: "성인용 콘텐츠" },
+                                                { text: "폭력 - 상처, 손상, 상해를 보여주는 상황" },
+                                                { text: "시청자에게 혼란, 혐오감, 충격을 줄 수 있는 이미지 또는 언어" },
+                                                { text: "기분전환용 약물 복용 관련" },
+                                                { text: "부정 행위를 미화하거나 조장" },
+                                                { text: "특정 집단 또는 개인에 대한 증오심, 경멸, 괴롭힘" }
+                                            ].map((item, idx) => (
+                                                <div key={idx} className="flex items-start gap-3 group">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-2.5 transition-colors group-hover:bg-primary" />
+                                                    <p className="text-slate-600 font-normal leading-relaxed">
+                                                        {item.highlights ? (
+                                                            item.text.split(new RegExp(`(${item.highlights.join('|')})`, 'g')).map((part, i) =>
+                                                                item.highlights?.includes(part)
+                                                                    ? <span key={i} className="text-red-500 font-bold">{part}</span>
+                                                                    : part
+                                                            )
+                                                        ) : item.text}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Final Agreement Checkbox */}
+                                        <div className="pt-8 border-t border-slate-50">
+                                            <label className="flex items-center gap-4 cursor-pointer group">
+                                                <div className="relative">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="hidden"
+                                                        checked={isAgreed}
+                                                        onChange={(e) => setIsAgreed(e.target.checked)}
+                                                    />
+                                                    <div className={`w-6 h-6 rounded-lg border-2 transition-all flex items-center justify-center ${isAgreed ? 'bg-primary border-primary shadow-lg shadow-primary/20' : 'border-slate-200 bg-white group-hover:border-slate-300'}`}>
+                                                        {isAgreed && <CheckCircle2 size={16} className="text-white" />}
+                                                    </div>
+                                                </div>
+                                                <span className="text-slate-700 font-bold select-none">
+                                                    위 금지 사항이 포함되지 않았음을 확인하며, 허위 확인 시 모든 책임은 본인에게 있음을 동의합니다.
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {currentStep === 7 && (
                                 <div className="bg-white rounded-[40px] border border-surface-border shadow-sm p-16 animate-in fade-in zoom-in-95 duration-700 text-center space-y-8">
                                     <div className="w-24 h-24 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-inner">
                                         <CheckCircle2 size={48} />
                                     </div>
                                     <div className="space-y-4">
-                                        <h3 className="text-3xl font-black text-slate-900">콘텐츠 등록 신청 완료!</h3>
+                                        <h3 className="text-3xl font-black text-slate-900">심사 요청 완료!</h3>
                                         <p className="text-slate-500 text-lg leading-relaxed max-w-md mx-auto">
-                                            축하합니다! 콘텐츠 등록이 성공적으로 완료되었습니다.<br />
-                                            이제 관리자 페이지에서 등록하신 콘텐츠를 확인하고 관리하실 수 있습니다.
+                                            축하합니다! 콘텐츠 심사 요청이 성공적으로 완료되었습니다.<br />
+                                            관리자의 승인 후 정식 배포될 예정입니다.
                                         </p>
                                     </div>
                                     <div className="pt-6">
@@ -1322,12 +1415,13 @@ function ContentRegistrationForm({ onList, onRefresh }: ContentRegistrationFormP
                         </div>
                     </div>
 
-                    {/* Sticky Footer (Compact Height & Blur) */}
                     <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.02)] z-50">
                         <div className="max-w-[1400px] mx-auto px-10 py-3 flex justify-end gap-3">
                             <button
                                 onClick={() => {
-                                    if (currentStep === 6) {
+                                    if (currentStep === 7) {
+                                        setCurrentStep(6);
+                                    } else if (currentStep === 6) {
                                         setCurrentStep(5);
                                     } else if (currentStep === 5) {
                                         if (formData.contentType === 'electronic_book') {
@@ -1347,18 +1441,31 @@ function ContentRegistrationForm({ onList, onRefresh }: ContentRegistrationFormP
                                         setCurrentStep(prev => Math.max(1, prev - 1));
                                     }
                                 }}
-                                disabled={currentStep === 1}
+                                disabled={currentStep === 1 || currentStep === 7}
                                 className="px-6 py-3 rounded-xl font-bold text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-20 disabled:hover:bg-transparent text-sm"
                             >
                                 이전 단계로
                             </button>
-                            <button
-                                onClick={() => handleSaveAndNext()}
-                                className="px-10 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-xl shadow-slate-900/10 transition-all active:scale-[0.98] flex items-center gap-2 text-sm"
-                            >
-                                {loading ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : null}
-                                {currentStep === 6 ? "최종 저장 및 완료" : "저장 및 다음 단계로"}
-                            </button>
+                            {currentStep !== 7 && (
+                                <button
+                                    onClick={() => {
+                                        if (currentStep === 6) {
+                                            if (!isAgreed) return;
+                                            handleSaveAndNext();
+                                        } else {
+                                            handleSaveAndNext();
+                                        }
+                                    }}
+                                    disabled={loading || (currentStep === 6 && !isAgreed)}
+                                    className={`px-10 py-3 font-bold rounded-xl shadow-xl transition-all active:scale-[0.98] flex items-center gap-2 text-sm ${currentStep === 6 && !isAgreed
+                                        ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                                        : "bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/10"
+                                        }`}
+                                >
+                                    {loading ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : null}
+                                    {currentStep === 6 ? "심사 요청하기" : "저장 및 다음 단계로"}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
