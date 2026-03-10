@@ -23,7 +23,7 @@ import {
     Settings2,
     GripVertical
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { TopNav } from "./TopNav";
 
 interface Track {
@@ -40,6 +40,7 @@ interface Track {
     artwork_title_ko?: string;
     artwork_title_orig?: string;
     artist_name_ko?: string;
+    artist_name_orig?: string;
     artwork_url?: string;
     room_location?: string;
     sequence_number?: string;
@@ -105,28 +106,30 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
     const [editingId, setEditingId] = useState<string | number | null>(null);
     const [editingName, setEditingName] = useState("");
 
+    // Helper to check if the current category requires a map
+    const isMapCategory = (catId: string) => {
+        return ['attraction', 'city_tour', 'museum'].includes(catId);
+    };
+
     // Dynamic steps configuration
     const getSteps = () => {
         if (formData.contentType === 'electronic_book') {
             return [
                 { id: 1, label: '카테고리 선택' },
-                { id: 3, label: '상세 페이지 제작' },
-                { id: 5, label: '등록 완료' }
+                { id: 5, label: '상세 페이지 제작' },
+                { id: 6, label: '등록 완료' }
             ];
         }
 
-        const base = [
+        // For Audio/Video
+        return [
             { id: 1, label: '카테고리 선택' },
-            { id: 2, label: '위치 및 지도 선택' }
+            { id: 2, label: '위치 및 지도 선택' },
+            { id: 3, label: '위치 설정' },
+            { id: 4, label: '트랙 제작' },
+            { id: 5, label: '상세 페이지 제작' },
+            { id: 6, label: '등록 완료' }
         ];
-
-        if (formData.mapType !== 'none') {
-            base.push({ id: 3, label: '위치 설정' });
-        }
-        base.push({ id: 4, label: '트랙 제작' });
-        base.push({ id: 5, label: '등록 완료' });
-
-        return base;
     };
 
     const steps = getSteps();
@@ -159,6 +162,7 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
             artwork_title_ko: "",
             artwork_title_orig: "",
             artist_name_ko: "",
+            artist_name_orig: "",
             artwork_url: "",
             room_location: "",
             sequence_number: ""
@@ -216,6 +220,11 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
     };
 
     const uploadToBucket = async (file: File, bucket: string = 'contents') => {
+        if (!isSupabaseConfigured) {
+            console.log(`[Mock Upload] File: ${file.name} to Bucket: ${bucket}`);
+            return URL.createObjectURL(file); // Return a local URL for preview
+        }
+
         const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
         const filePath = `${fileName}`;
@@ -280,6 +289,12 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
     const saveData = async () => {
         setLoading(true);
         try {
+            if (!isSupabaseConfigured) {
+                console.log("[Mock Save] Data saving skipped (Supabase not configured):", formData);
+                if (onRefresh) await onRefresh();
+                return true;
+            }
+
             // 1. Save/Update Content (Ensure we have a content_id)
             let currentContentId = contentId;
             if (!currentContentId) {
@@ -321,9 +336,11 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
 
                 if (spotsError) throw spotsError;
 
-                savedSpots.forEach((spot, idx) => {
-                    spotIdMap[formData.spots[idx].id] = spot.id;
-                });
+                if (savedSpots) {
+                    savedSpots.forEach((spot, idx) => {
+                        spotIdMap[formData.spots[idx].id] = spot.id;
+                    });
+                }
             }
 
             // 3. Save Tracks using saved spot IDs
@@ -331,7 +348,7 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
             if (allTracks.length > 0) {
                 const tracksToInsert = allTracks.map(t => ({
                     content_id: currentContentId,
-                    spot_id: t.spot_id && t.spot_id !== 'none' ? spotIdMap[t.spot_id] : null,
+                    spot_id: t.spot_id && t.spot_id !== 'none' ? spotIdMap[t.spot_id as keyof typeof spotIdMap] : null,
                     title: t.title,
                     description: t.description,
                     audio_url: t.audio_url,
@@ -362,11 +379,15 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
     };
 
     const handleSaveAndNext = async (nextStep?: number) => {
-        // If final step (Step 4 for A/V or Step 3 for E-book), call saveData
-        const isFinalStep = (formData.contentType === 'electronic_book' && currentStep === 3) ||
-            (formData.contentType !== 'electronic_book' && currentStep === 4);
+        // If final step (Step 5 for both), call saveData
+        const isFinalStep = currentStep === 5;
 
         if (isFinalStep) {
+            // Validation check (all fields required)
+            if (!formData.title || !formData.description || !formData.price || !formData.thumbnailUrl) {
+                alert("모든 필수 항목을 입력해 주세요 (콘텐츠 이름, 소개글, 가격, 대표 이미지).");
+                return;
+            }
             const success = await saveData();
             if (!success) return;
         }
@@ -376,39 +397,46 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
         } else {
             if (currentStep === 1) {
                 if (formData.contentType === 'electronic_book') {
-                    setCurrentStep(3); // Skip Step 2
+                    setCurrentStep(5); // Go straight to Detail Page
+                } else if (!isMapCategory(formData.category)) {
+                    // Non-map categories go straight to Step 4
+                    setFormData(prev => ({ ...prev, mapType: 'none' }));
+                    setCurrentStep(4);
                 } else {
                     setCurrentStep(2);
                 }
             } else if (currentStep === 2) {
-                if (formData.mapType === 'none') {
+                if (formData.mapType === 'none' && !isMapCategory(formData.category)) {
+                    setCurrentStep(4);
+                } else if (formData.mapType === 'none') {
                     setCurrentStep(4);
                 } else {
                     setCurrentStep(3);
                 }
             } else if (currentStep === 3) {
-                if (formData.contentType === 'electronic_book') {
-                    setCurrentStep(5);
-                } else {
-                    setCurrentStep(4);
-                }
+                setCurrentStep(4);
             } else if (currentStep === 4) {
                 setCurrentStep(5);
+            } else if (currentStep === 5) {
+                setCurrentStep(6);
             } else {
-                setCurrentStep((prev) => Math.min(prev + 1, 5));
+                setCurrentStep((prev) => Math.min(prev + 1, 6));
             }
         }
     };
 
     return (
-        <div className="w-full min-h-screen bg-slate-100/50 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="w-full min-h-screen bg-[#FCFBF9] animate-in fade-in slide-in-from-bottom-4 duration-700">
             <TopNav />
 
             <div className="pt-16 pb-20">
                 <div className="w-full px-6 md:px-10 py-10">
+                    <h2 className="text-3xl font-extrabold text-slate-900 mb-8 max-w-[1400px] mx-auto px-4">
+                        콘텐츠 제작 및 등록
+                    </h2>
                     {/* Stepper Navigation Card */}
-                    {currentStep < 5 && (
-                        <div className="bg-white p-12 rounded-[40px] border border-surface-border shadow-sm mb-10 overflow-hidden max-w-[1400px] mx-auto">
+                    {currentStep < 6 && (
+                        <div className="bg-white p-10 md:p-12 rounded-[40px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white mb-10 overflow-hidden max-w-[1400px] mx-auto">
                             <div className="relative flex justify-between items-center max-w-4xl mx-auto">
                                 <div className="absolute top-[32px] left-0 w-full h-[3px] bg-slate-100 -z-0 rounded-full" />
                                 <div
@@ -444,7 +472,7 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                                 <div className="text-right">
                                     <span className="text-3xl font-normal text-slate-900">{String(currentStep).padStart(2, '0')}</span>
                                     <span className="text-slate-300 mx-2 text-xl">/</span>
-                                    <span className="text-slate-300 text-xl font-normal">05</span>
+                                    <span className="text-slate-300 text-xl font-normal">06</span>
                                 </div>
                             </div>
                         </div>
@@ -460,9 +488,9 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                             {currentStep === 1 && (
                                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                                     {/* 1. 콘텐츠 유형 Selection Tiles */}
-                                    <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-8">
+                                    <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-8">
                                         <div className="flex flex-col space-y-2 mb-8">
-                                            <h3 className="text-[26px] font-normal text-black leading-tight">콘텐츠 유형*</h3>
+                                            <h3 className="text-xl font-bold text-slate-900">콘텐츠 유형*</h3>
                                             <p className="text-slate-400 text-base font-normal">등록하실 콘텐츠의 형식을 선택해 주세요.</p>
                                         </div>
                                         <div className="grid grid-cols-2 gap-6">
@@ -494,9 +522,9 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                                     </div>
 
                                     {/* 2. 카테고리 Selection Tiles */}
-                                    <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-8">
+                                    <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-8">
                                         <div className="flex flex-col space-y-2 mb-8">
-                                            <h3 className="text-[26px] font-normal text-black leading-tight">카테고리*</h3>
+                                            <h3 className="text-xl font-bold text-slate-900">카테고리*</h3>
                                             <p className="text-slate-400 text-base font-normal">콘텐츠의 성격을 가장 잘 나타내는 항목을 선택해 주세요.</p>
                                         </div>
                                         <div className="grid grid-cols-3 gap-4">
@@ -528,85 +556,88 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                                     </div>
 
                                     {/* 3. 도시 입력 (Improved Searchable Input) */}
-                                    <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-6">
-                                        <div className="flex flex-col space-y-2 mb-8">
-                                            <h3 className="text-[26px] font-normal text-black leading-tight">도시*</h3>
-                                        </div>
-                                        <div className="flex gap-4">
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const newType = formData.cityType === 'global' ? 'normal' : 'global';
-                                                    setFormData(prev => ({
-                                                        ...prev,
-                                                        cityType: newType,
-                                                        city: newType === 'global' ? '전세계' : ''
-                                                    }));
-                                                    if (newType === 'global') setIsCityOpen(false);
-                                                }}
-                                                className="flex items-center gap-2 cursor-pointer group"
-                                            >
-                                                <div className={`w-5 h-5 border-2 rounded-md flex items-center justify-center transition-all ${formData.cityType === 'global' ? "bg-slate-900 border-slate-900" : "border-slate-200"}`}>
-                                                    {formData.cityType === 'global' && <CheckCircle2 size={12} className="text-white" />}
-                                                </div>
-                                                <span className={`text-sm font-medium transition-colors ${formData.cityType === 'global' ? "text-slate-900" : "text-slate-500 group-hover:text-slate-800"}`}>
-                                                    전세계 대상
-                                                </span>
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="relative max-w-2xl">
-                                        <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl border-2 transition-all duration-300 ${formData.cityType === 'global' ? 'opacity-40 cursor-not-allowed bg-slate-50 border-transparent' : isCityOpen ? 'border-primary bg-white shadow-xl shadow-primary/5' : 'border-slate-100 bg-slate-50/50 hover:border-slate-200'}`}>
-                                            <Search size={20} className={isCityOpen ? "text-primary" : "text-slate-400"} />
-                                            <input
-                                                name="city" value={formData.cityType === 'global' ? "" : formData.city}
-                                                onFocus={() => formData.cityType === 'normal' && setIsCityOpen(true)}
-                                                onBlur={() => setTimeout(() => setIsCityOpen(false), 200)}
-                                                onChange={(e) => {
-                                                    setFormData(prev => ({ ...prev, city: e.target.value, cityType: 'normal' }));
-                                                    setIsCityOpen(true);
-                                                }}
-                                                disabled={formData.cityType === 'global'}
-                                                type="text" placeholder={formData.cityType === 'global' ? "전세계 대상으로 설정되었습니다." : "도시명을 검색하거나 입력해 주세요."}
-                                                className="flex-1 bg-transparent outline-none text-base font-medium text-slate-800 placeholder:text-slate-300 disabled:cursor-not-allowed"
-                                            />
-                                            {formData.cityType === 'normal' && <ChevronDown size={18} className={`text-slate-400 transition-transform duration-300 ${isCityOpen ? 'rotate-180' : ''}`} />}
+                                    <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-8">
+                                        <div className="flex flex-col space-y-2">
+                                            <h3 className="text-xl font-bold text-slate-900">도시*</h3>
                                         </div>
 
-                                        {/* Mock Search Results dropdown - Higher Z-index */}
-                                        {isCityOpen && formData.city.length > 0 && formData.cityType === 'normal' && (
-                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-surface-border shadow-2xl p-3 z-[100] animate-in slide-in-from-top-2 duration-200">
-                                                <div className="p-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4">추천 도시</div>
-                                                {['파리', '런던', '도쿄', '뉴욕', '바르셀로나'].filter(c => c.includes(formData.city)).map((c) => (
-                                                    <button
-                                                        key={c}
-                                                        onMouseDown={() => {
-                                                            setFormData(prev => ({ ...prev, city: c }));
-                                                            setIsCityOpen(false);
-                                                        }}
-                                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-xl transition-colors text-left"
-                                                    >
-                                                        <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400">
-                                                            <Globe size={16} />
-                                                        </div>
-                                                        <span className="text-base font-bold text-slate-800">{c}</span>
-                                                    </button>
-                                                ))}
+                                        <div className="space-y-6">
+                                            <div className="flex gap-4">
                                                 <button
-                                                    onMouseDown={() => setIsCityOpen(false)}
-                                                    className="w-full flex items-center gap-3 px-4 py-3 border-t border-slate-50 hover:bg-slate-50 rounded-xl transition-colors text-left mt-1"
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newType = formData.cityType === 'global' ? 'normal' : 'global';
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            cityType: newType,
+                                                            city: newType === 'global' ? '전세계' : ''
+                                                        }));
+                                                        if (newType === 'global') setIsCityOpen(false);
+                                                    }}
+                                                    className="flex items-center gap-2 cursor-pointer group"
                                                 >
-                                                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
-                                                        <Edit2 size={16} />
+                                                    <div className={`w-5 h-5 border-2 rounded-md flex items-center justify-center transition-all ${formData.cityType === 'global' ? "bg-slate-900 border-slate-900" : "border-slate-200"}`}>
+                                                        {formData.cityType === 'global' && <CheckCircle2 size={12} className="text-white" />}
                                                     </div>
-                                                    <div>
-                                                        <span className="text-base font-bold text-slate-800">&quot;{formData.city}&quot; 직접 입력</span>
-                                                        <p className="text-[10px] text-slate-400 mt-0.5">새로운 도시로 등록합니다</p>
-                                                    </div>
+                                                    <span className={`text-sm font-medium transition-colors ${formData.cityType === 'global' ? "text-slate-900" : "text-slate-500 group-hover:text-slate-800"}`}>
+                                                        전세계 대상
+                                                    </span>
                                                 </button>
                                             </div>
-                                        )}
+
+                                            <div className="relative max-w-2xl">
+                                                <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl border-2 transition-all duration-300 ${formData.cityType === 'global' ? 'opacity-40 cursor-not-allowed bg-slate-50 border-transparent' : isCityOpen ? 'border-primary bg-white shadow-xl shadow-primary/5' : 'border-slate-100 bg-slate-50/50 hover:border-slate-200'}`}>
+                                                    <Search size={20} className={isCityOpen ? "text-primary" : "text-slate-400"} />
+                                                    <input
+                                                        name="city" value={formData.cityType === 'global' ? "" : formData.city}
+                                                        onFocus={() => formData.cityType === 'normal' && setIsCityOpen(true)}
+                                                        onBlur={() => setTimeout(() => setIsCityOpen(false), 200)}
+                                                        onChange={(e) => {
+                                                            setFormData(prev => ({ ...prev, city: e.target.value, cityType: 'normal' }));
+                                                            setIsCityOpen(true);
+                                                        }}
+                                                        disabled={formData.cityType === 'global'}
+                                                        type="text" placeholder={formData.cityType === 'global' ? "전세계 대상으로 설정되었습니다." : "도시명을 검색하거나 입력해 주세요."}
+                                                        className="flex-1 bg-transparent outline-none text-base font-medium text-slate-800 placeholder:text-slate-300 disabled:cursor-not-allowed"
+                                                    />
+                                                    {formData.cityType === 'normal' && <ChevronDown size={18} className={`text-slate-400 transition-transform duration-300 ${isCityOpen ? 'rotate-180' : ''}`} />}
+                                                </div>
+
+                                                {/* Mock Search Results dropdown - Higher Z-index */}
+                                                {isCityOpen && formData.city.length > 0 && formData.cityType === 'normal' && (
+                                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-surface-border shadow-2xl p-3 z-[100] animate-in slide-in-from-top-2 duration-200">
+                                                        <div className="p-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4">추천 도시</div>
+                                                        {['파리', '런던', '도쿄', '뉴욕', '바르셀로나'].filter(c => c.includes(formData.city)).map((c) => (
+                                                            <button
+                                                                key={c}
+                                                                onMouseDown={() => {
+                                                                    setFormData(prev => ({ ...prev, city: c }));
+                                                                    setIsCityOpen(false);
+                                                                }}
+                                                                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-xl transition-colors text-left"
+                                                            >
+                                                                <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400">
+                                                                    <Globe size={16} />
+                                                                </div>
+                                                                <span className="text-base font-bold text-slate-800">{c}</span>
+                                                            </button>
+                                                        ))}
+                                                        <button
+                                                            onMouseDown={() => setIsCityOpen(false)}
+                                                            className="w-full flex items-center gap-3 px-4 py-3 border-t border-slate-50 hover:bg-slate-50 rounded-xl transition-colors text-left mt-1"
+                                                        >
+                                                            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
+                                                                <Edit2 size={16} />
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-base font-bold text-slate-800">&quot;{formData.city}&quot; 직접 입력</span>
+                                                                <p className="text-[10px] text-slate-400 mt-0.5">새로운 도시로 등록합니다</p>
+                                                            </div>
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -616,14 +647,14 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                                     {/* 1. 박물관/미술관 전용 (Only if category is museum) */}
                                     {formData.category === "museum" && (
-                                        <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-8">
+                                        <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-8">
                                             <div className="flex flex-col space-y-2 mb-8">
-                                                <h3 className="text-[26px] font-normal text-black leading-tight">시설 정보*</h3>
+                                                <h3 className="text-xl font-bold text-slate-900">시설 정보*</h3>
                                                 <p className="text-slate-400 text-base font-normal">박물관 또는 미술관의 정보를 입력해 주세요.</p>
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                                 <div className="space-y-3">
-                                                    <label className="text-sm font-bold text-slate-500 ml-1">기관명 (검색/입력)</label>
+                                                    <label className="text-[14px] font-bold text-slate-700 ml-1">기관명 (검색/입력)</label>
                                                     <div className="relative group">
                                                         <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">
                                                             <Search size={18} />
@@ -638,7 +669,7 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                                                     </div>
                                                 </div>
                                                 <div className="space-y-3">
-                                                    <label className="text-sm font-bold text-slate-500 ml-1">공식 홈페이지 링크 (선택)</label>
+                                                    <label className="text-[14px] font-bold text-slate-700 ml-1">공식 홈페이지 링크 (선택)</label>
                                                     <div className="relative group">
                                                         <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">
                                                             <Layers size={18} className="rotate-45" />
@@ -657,419 +688,241 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                                     )}
 
                                     {/* 2. 지도 활용 (Map Selection Tiles) */}
-                                    <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-8">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex flex-col space-y-2 mb-8">
-                                                <h3 className="text-[26px] font-normal text-black leading-tight">지도 활용*</h3>
-                                                <p className="text-slate-400 text-base font-normal">여행자가 길을 찾으려면 어떤 지도가 필요한가요?</p>
+                                    <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-8">
+                                        {!isMapCategory(formData.category) ? (
+                                            <div className="flex flex-col items-center justify-center py-20 animate-in fade-in duration-500">
+                                                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
+                                                    <XCircle size={40} className="text-slate-300" />
+                                                </div>
+                                                <h4 className="text-xl font-bold text-slate-800 mb-2">지도가 필요하지 않은 카테고리입니다</h4>
+                                                <p className="text-slate-500">선택하신 카테고리는 지도 설정 단계를 건너뜁니다.</p>
                                             </div>
-                                            <button
-                                                onClick={() => window.open('https://www.tourlive.co.kr', '_blank')}
-                                                className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors"
-                                            >
-                                                예시 보기
-                                            </button>
-                                        </div>
+                                        ) : (
+                                            <>
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex flex-col space-y-2 mb-8">
+                                                        <h3 className="text-xl font-bold text-slate-900">지도 활용*</h3>
+                                                        <p className="text-slate-400 text-base font-normal">여행자가 길을 찾으려면 어떤 지도가 필요한가요?</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => window.open('https://www.tourlive.co.kr', '_blank')}
+                                                        className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors"
+                                                    >
+                                                        예시 보기
+                                                    </button>
+                                                </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            {[
-                                                { id: 'google_map', label: '외부 구글맵', desc: '팔라티노 언덕 투어, 폼페이 투어 등 명소 가이드', icon: Globe },
-                                                { id: 'image_map', label: '내부 이미지 지도', desc: '대영 박물관, 우피치 미술관 등 실내 가이드', icon: ImageIcon },
-                                                { id: 'both', label: '외부, 내부 모두 사용', desc: '베르사유 투어, 가우디 반일투어 등 복합 가이드', icon: Layers },
-                                                { id: 'none', label: '필요하지 않음', desc: '여행이야기, 가이드북, 인문학 콘텐츠 등', icon: XCircle }
-                                            ].map((map) => (
-                                                <button
-                                                    key={map.id}
-                                                    onClick={() => setFormData(prev => ({ ...prev, mapType: map.id }))}
-                                                    className={`flex gap-5 p-6 rounded-[24px] border-2 text-left transition-all duration-300 relative ${formData.mapType === map.id
-                                                        ? "border-primary bg-primary/[0.03] shadow-lg shadow-primary/5"
-                                                        : "border-slate-100 bg-slate-50/30 hover:border-slate-200 hover:bg-white"
-                                                        }`}
-                                                >
-                                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${formData.mapType === map.id ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-white text-slate-400 border border-slate-100 shadow-sm"}`}>
-                                                        <map.icon size={22} />
-                                                    </div>
-                                                    <div className="flex-1 pr-6">
-                                                        <span className={`block text-lg font-bold mb-1 ${formData.mapType === map.id ? "text-primary" : "text-slate-800"}`}>{map.label}</span>
-                                                        <span className="text-sm text-slate-400 leading-snug">{map.desc}</span>
-                                                    </div>
-                                                    {formData.mapType === map.id && (
-                                                        <div className="absolute top-4 right-4 text-primary animate-in zoom-in-50 duration-300">
-                                                            <CheckCircle2 size={24} fill="currentColor" stroke="white" />
-                                                        </div>
-                                                    )}
-                                                </button>
-                                            ))}
-                                        </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    {[
+                                                        { id: 'google_map', label: '외부 구글맵', desc: '팔라티노 언덕 투어, 폼페이 투어 등 명소 가이드', icon: Globe },
+                                                        { id: 'image_map', label: '내부 이미지 지도', desc: '대영 박물관, 우피치 미술관 등 실내 가이드', icon: ImageIcon },
+                                                        { id: 'both', label: '외부, 내부 모두 사용', desc: '베르사유 투어, 가우디 반일투어 등 복합 가이드', icon: Layers },
+                                                        { id: 'none', label: '필요하지 않음', desc: '여행이야기, 가이드북, 인문학 콘텐츠 등', icon: XCircle }
+                                                    ]
+                                                        .filter(map => map.id !== 'none' || !isMapCategory(formData.category))
+                                                        .map((map) => (
+                                                            <button
+                                                                key={map.id}
+                                                                onClick={() => setFormData(prev => ({ ...prev, mapType: map.id }))}
+                                                                className={`flex gap-5 p-6 rounded-[24px] border-2 text-left transition-all duration-300 relative ${formData.mapType === map.id
+                                                                    ? "border-primary bg-primary/[0.03] shadow-lg shadow-primary/5"
+                                                                    : "border-slate-100 bg-slate-50/30 hover:border-slate-200 hover:bg-white"
+                                                                    }`}
+                                                            >
+                                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${formData.mapType === map.id ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-white text-slate-400 border border-slate-100 shadow-sm"}`}>
+                                                                    <map.icon size={22} />
+                                                                </div>
+                                                                <div className="flex-1 pr-6">
+                                                                    <span className={`block text-lg font-bold mb-1 ${formData.mapType === map.id ? "text-primary" : "text-slate-800"}`}>{map.label}</span>
+                                                                    <span className="text-sm text-slate-400 leading-snug">{map.desc}</span>
+                                                                </div>
+                                                                {formData.mapType === map.id && (
+                                                                    <div className="absolute top-4 right-4 text-primary animate-in zoom-in-50 duration-300">
+                                                                        <CheckCircle2 size={24} fill="currentColor" stroke="white" />
+                                                                    </div>
+                                                                )}
+                                                            </button>
+                                                        ))}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             )}
 
-                            {currentStep === 3 && (
+                            {currentStep === 3 && formData.contentType === 'audio_video' && (
                                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                                    {formData.contentType === 'electronic_book' ? (
-                                        <>
-                                            {/* 1. 콘텐츠 이름 */}
-                                            <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-6">
-                                                <div className="flex flex-col space-y-2 mb-8">
-                                                    <h3 className="text-[26px] font-normal text-black leading-tight">콘텐츠 이름*</h3>
-                                                    <p className="text-slate-400 text-base font-normal">등록하시고자 하는 콘텐츠의 특성과 지역이 잘 드러나는 키워드를 사용해 주세요.</p>
+                                    {/* Location Setup */}
+                                    <div className="space-y-8">
+                                        {!isMapCategory(formData.category) ? (
+                                            <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-20 flex flex-col items-center justify-center animate-in fade-in duration-500">
+                                                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
+                                                    <Map size={40} className="text-slate-300" />
                                                 </div>
-                                                <div className="space-y-3">
-                                                    <input
-                                                        type="text"
-                                                        maxLength={50}
-                                                        placeholder="콘텐츠 이름을 입력해 주세요."
-                                                        value={formData.title}
-                                                        onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                                                        className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all font-medium text-lg"
-                                                    />
-                                                    <div className="text-xs text-slate-400 space-y-1 ml-1 leading-relaxed">
-                                                        <p>• 50자 제한 / 이모티콘 및 특수문자 사용 불가</p>
-                                                        <p>• 등록하시고자 하는 콘텐츠의 특성과 지역이 잘 드러나는 키워드를 사용해 주세요.</p>
-                                                        <p>• 기존 콘텐츠 이름과 중복될 시 콘텐츠 등록이 반려됩니다.</p>
-                                                    </div>
-                                                </div>
+                                                <h4 className="text-xl font-bold text-slate-800 mb-2">지도가 필요하지 않은 카테고리입니다</h4>
+                                                <p className="text-slate-500">다음 단계를 통해 트랙을 바로 구성하실 수 있습니다.</p>
                                             </div>
-
-                                            {/* 2. 콘텐츠 소개글 */}
-                                            <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-6">
-                                                <div className="flex flex-col space-y-2 mb-8">
-                                                    <h3 className="text-[26px] font-normal text-black leading-tight">콘텐츠 소개글*</h3>
-                                                    <p className="text-slate-400 text-base font-normal">여행자에게 이 콘텐츠의 매력을 상세하게 설명해 주세요. (최대 1000자)</p>
-                                                </div>
-                                                <div className="space-y-3">
-                                                    <textarea
-                                                        placeholder={`<소개글 작성 추천 요소>\n• 이 투어가 왜 특별한지\n• 이 장소를 왜 추천하는지, 그리고 그냥 방문하면 무엇을 놓치게 되는지\n• 이 투어를 통해 여행자가 무엇을 알고 무엇을 느끼게 될지\n• 이 투어가 어떤 방식으로 진행되는지, 어떤 포인트를 다루는지\n• 어떤 여행자에게 특히 잘 맞는지\n\n[예시]\n우피치 미술관은 르네상스가 태어난 도시 피렌체를 대표하는 세계 최고의 미술관입니다.\n하지만 수많은 명화 속에 담긴 의미와 이야기를 모르고 보면, 그냥 '유명한 그림들'로만 지나치기 쉽습니다.\n이 투어는 르네상스 시대 사람들의 생각이 어떻게 바뀌었는지, 화가들이 그것을 어떻게 그림 속에 담아냈는지를 작품과 함께 쉽고 재미있게 풀어드립니다.`}
-                                                        value={formData.description}
-                                                        onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                                                        className="w-full px-6 py-6 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all font-medium text-base min-h-[400px] leading-relaxed resize-none"
-                                                    />
-                                                    <p className="text-xs text-slate-400 ml-1">• 최소 500자 최대 1000자 제한 (공백포함)</p>
-                                                </div>
-                                            </div>
-
-                                            {/* 3. 콘텐츠 가격 */}
-                                            <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-6">
-                                                <div className="flex flex-col space-y-2 mb-8">
-                                                    <h3 className="text-[26px] font-normal text-black leading-tight">콘텐츠 가격*</h3>
-                                                    <p className="text-slate-400 text-base font-normal">판매하실 가격을 설정해 주세요.</p>
-                                                </div>
-                                                <div className="flex items-center gap-4">
-                                                    <div className="relative flex-1 max-w-xs group">
-                                                        <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-900 font-bold">₩</div>
-                                                        <input
-                                                            type="text"
-                                                            placeholder="가격 입력"
-                                                            value={formData.price}
-                                                            onChange={(e) => {
-                                                                const val = e.target.value.replace(/[^0-9]/g, '');
-                                                                setFormData(prev => ({ ...prev, price: val ? Number(val).toLocaleString() : '' }));
-                                                            }}
-                                                            className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all font-bold text-lg text-right"
-                                                        />
-                                                    </div>
-                                                    <span className="text-slate-400 font-medium">KRW (₩) 기준</span>
-                                                </div>
-                                            </div>
-
-                                            {/* 4. 이미지 업로드 */}
-                                            <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-8">
-                                                <div className="flex flex-col space-y-2 mb-8">
-                                                    <h3 className="text-[26px] font-normal text-black leading-tight">이미지 업로드*</h3>
-                                                    <p className="text-slate-400 text-base font-normal">권장 규격 1200*645, 용량 5mb 미만</p>
-                                                </div>
-
-                                                <div className="grid grid-cols-1 gap-4 max-w-2xl">
-                                                    {/* Thumbnail */}
-                                                    <div className="group relative flex items-center gap-6 p-6 rounded-3xl border-2 border-primary/20 bg-primary/5 hover:border-primary/40 transition-all">
-                                                        <div className="w-32 h-20 rounded-xl bg-white border border-slate-100 overflow-hidden flex items-center justify-center text-slate-300">
-                                                            {formData.thumbnailPreview ? (
-                                                                <img src={formData.thumbnailPreview} className="w-full h-full object-cover" alt="Thumbnail Preview" />
-                                                            ) : <ImageIcon size={32} />}
+                                        ) : (
+                                            <>
+                                                {/* Google Map Section (Shown if google_map or both) */}
+                                                {(formData.mapType === 'google_map' || formData.mapType === 'both') && (
+                                                    <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-6">
+                                                        <div className="flex flex-col space-y-2 mb-8">
+                                                            <h3 className="text-xl font-bold text-slate-900">
+                                                                외부 구글맵 설정 {formData.mapType === 'both' ? '(스팟 지정)' : ''}
+                                                            </h3>
+                                                            <p className="text-slate-400 text-base font-normal">콘텐츠가 재생될 외부 위치를 지도에 핀으로 표시해 주세요.</p>
                                                         </div>
-                                                        <div className="flex-1">
-                                                            <span className="block text-base font-bold text-slate-900 mb-1">대표사진*</span>
-                                                            <div className="flex items-center gap-3">
-                                                                <label className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-sm rounded-xl transition-all cursor-pointer">
-                                                                    파일 선택
-                                                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'thumbnail')} />
-                                                                </label>
-                                                                {formData.thumbnailPreview && (
-                                                                    <div className="flex gap-2">
-                                                                        <button className="p-2 text-slate-400 hover:text-slate-600 transition-colors"><Layers size={20} /></button>
-                                                                        <button
-                                                                            onClick={() => setFormData(prev => ({ ...prev, thumbnailUrl: "", thumbnailPreview: "" }))}
-                                                                            className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-                                                                        >
-                                                                            <XCircle size={20} />
-                                                                        </button>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Gallery 1 */}
-                                                    <div className="group relative flex items-center gap-6 p-6 rounded-3xl border-2 border-slate-100 bg-slate-50/50 hover:border-slate-200 transition-all">
-                                                        <div className="w-32 h-20 rounded-xl bg-white border border-slate-100 overflow-hidden flex items-center justify-center text-slate-300">
-                                                            {formData.galleryPreviews[0] ? (
-                                                                <img src={formData.galleryPreviews[0]} className="w-full h-full object-cover" alt="Gallery Preview 1" />
-                                                            ) : <ImageIcon size={32} />}
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <span className="block text-base font-bold text-slate-900 mb-1">이미지1</span>
-                                                            <div className="flex items-center gap-3">
-                                                                <label className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold text-sm rounded-xl transition-all cursor-pointer">
-                                                                    파일 선택
-                                                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'gallery')} />
-                                                                </label>
-                                                                {formData.galleryPreviews[0] && (
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setFormData(prev => ({
-                                                                                ...prev,
-                                                                                galleryUrls: prev.galleryUrls.filter((_, i) => i !== 0),
-                                                                                galleryPreviews: prev.galleryPreviews.filter((_, i) => i !== 0)
-                                                                            }));
-                                                                        }}
-                                                                        className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-                                                                    >
-                                                                        <XCircle size={20} />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Gallery 2 */}
-                                                    <div className="group relative flex items-center gap-6 p-6 rounded-3xl border-2 border-slate-100 bg-slate-50/50 hover:border-slate-200 transition-all">
-                                                        <div className="w-32 h-20 rounded-xl bg-white border border-slate-100 overflow-hidden flex items-center justify-center text-slate-300">
-                                                            {formData.galleryPreviews[1] ? (
-                                                                <img src={formData.galleryPreviews[1]} className="w-full h-full object-cover" alt="Gallery Preview 2" />
-                                                            ) : <ImageIcon size={32} />}
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <span className="block text-base font-bold text-slate-900 mb-1">이미지2</span>
-                                                            <div className="flex items-center gap-3">
-                                                                <label className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold text-sm rounded-xl transition-all cursor-pointer">
-                                                                    파일 선택
-                                                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'gallery')} />
-                                                                </label>
-                                                                {formData.galleryPreviews[1] && (
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setFormData(prev => ({
-                                                                                ...prev,
-                                                                                galleryUrls: prev.galleryUrls.filter((_, i) => i !== 1),
-                                                                                galleryPreviews: prev.galleryPreviews.filter((_, i) => i !== 1)
-                                                                            }));
-                                                                        }}
-                                                                        className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-                                                                    >
-                                                                        <XCircle size={20} />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* 5. 콘텐츠 파일 업로드 */}
-                                            <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-6">
-                                                <div className="flex flex-col space-y-2 mb-8">
-                                                    <h3 className="text-[26px] font-normal text-black leading-tight">
-                                                        {formData.contentType === 'electronic_book' ? 'epub 파일 업로드*' : '콘텐츠 파일 업로드*'}
-                                                    </h3>
-                                                    <p className="text-slate-400 text-base font-normal">
-                                                        {formData.contentType === 'electronic_book' ? '.epub 형식의 파일을 선택해 주세요.' : '멀티미디어 파일을 선택해 주세요.'}
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-center gap-4">
-                                                    <label className="px-10 py-6 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-lg rounded-2xl transition-all flex items-center gap-3 border-2 border-dashed border-primary/30 cursor-pointer">
-                                                        {formData.epubFileName ? <FileText size={24} /> : <Plus size={24} />}
-                                                        {formData.epubFileName || "파일 선택"}
-                                                        <input
-                                                            type="file"
-                                                            className="hidden"
-                                                            accept={formData.contentType === 'electronic_book' ? ".epub" : "audio/*,video/*"}
-                                                            onChange={(e) => handleFileUpload(e, 'epub')}
-                                                        />
-                                                    </label>
-                                                    {formData.epubFileName && (
-                                                        <button
-                                                            onClick={() => setFormData(prev => ({ ...prev, epubUrl: "", epubFileName: "" }))}
-                                                            className="p-3 text-slate-300 hover:text-red-500 transition-colors"
-                                                        >
-                                                            <XCircle size={24} />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                                <p className="text-xs text-slate-400 ml-1">
-                                                    {formData.contentType === 'electronic_book'
-                                                        ? '• .epub 형식의 파일만 업로드 가능합니다.'
-                                                        : '• 오디오(.mp3) 또는 비디오 콘텐츠 파일을 업로드해 주세요.'}
-                                                </p>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        /* Audio/Video Location Setup UI */
-                                        <div className="space-y-8">
-                                            {/* Google Map Section (Shown if google_map or both) */}
-                                            {(formData.mapType === 'google_map' || formData.mapType === 'both') && (
-                                                <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-6">
-                                                    <div className="flex flex-col space-y-2 mb-8">
-                                                        <h3 className="text-[26px] font-normal text-black leading-tight">
-                                                            외부 구글맵 설정 {formData.mapType === 'both' ? '(스팟 지정)' : ''}
-                                                        </h3>
-                                                        <p className="text-slate-400 text-base font-normal">콘텐츠가 재생될 외부 위치를 지도에 핀으로 표시해 주세요.</p>
-                                                    </div>
-                                                    <div className="grid grid-cols-1 md:grid-cols-12 gap-8 h-[500px]">
-                                                        {/* Left: Points List */}
-                                                        <div className="col-span-1 md:col-span-4 border-r border-slate-100 pr-6 space-y-4 overflow-y-auto custom-scrollbar">
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="font-bold text-slate-900">외부 스팟 목록</span>
-                                                                <button className="text-sm font-bold text-primary flex items-center gap-1 bg-primary/10 hover:bg-primary/20 transition-colors px-3 py-1.5 rounded-lg">
-                                                                    <Plus size={16} /> 스팟 추가
-                                                                </button>
-                                                            </div>
-                                                            {/* Mock Google Points */}
-                                                            {formData.spots.filter(s => s.mapType === 'google_map').map((spot, idx) => (
-                                                                <div key={spot.id} className="p-4 rounded-xl border-2 border-primary bg-primary/[0.03] space-y-3 shadow-sm shadow-primary/5">
-                                                                    <div className="flex items-center justify-between">
-                                                                        <span className="font-bold text-primary text-sm flex items-center gap-2">
-                                                                            <div className="w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center text-[10px]">{idx + 1}</div>
-                                                                            스팟 {idx + 1}
-                                                                        </span>
-                                                                        <button className="text-slate-400 hover:text-red-500 transition-colors"><XCircle size={16} /></button>
-                                                                    </div>
-                                                                    <input type="text" placeholder="스팟 이름" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-primary font-medium" defaultValue={spot.name} />
-                                                                </div>
-                                                            ))}
-                                                            {/* Empty State Mock */}
-                                                            {formData.spots.filter(s => s.mapType === 'google_map').length === 0 && (
-                                                                <div className="p-8 text-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl">
-                                                                    <p className="text-sm text-slate-400 font-medium">우측 지도에서 위치를 클릭해<br />새 스팟을 추가하세요.</p>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        {/* Right: Google Map View Placeholder */}
-                                                        <div className="col-span-1 md:col-span-8 bg-slate-50 rounded-2xl border-2 border-slate-100 flex flex-col items-center justify-center relative overflow-hidden group">
-                                                            <div className="text-center space-y-4">
-                                                                <div className="w-20 h-20 bg-white rounded-2xl border border-slate-200 flex items-center justify-center mx-auto shadow-sm group-hover:scale-110 transition-transform">
-                                                                    <Globe size={32} className="text-slate-300" />
-                                                                </div>
-                                                                <div className="space-y-2">
-                                                                    <p className="font-bold text-slate-700 text-lg">Google Map View (API Placeholder)</p>
-                                                                    <p className="text-sm text-slate-400">화면을 클릭해 지도 위에 외부 스팟을 지정하세요.</p>
-                                                                </div>
-                                                            </div>
-                                                            {/* Mock Pin */}
-                                                            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                                                                <div className="relative">
-                                                                    <Map size={48} className="text-primary opacity-20" />
-                                                                    <div className="absolute -top-4 -left-4 w-6 h-6 bg-primary rounded-full shadow-lg border-2 border-white flex items-center justify-center z-10 animate-bounce">
-                                                                        <div className="w-2 h-2 bg-white rounded-full"></div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Image Map Section (Shown if image_map or both) */}
-                                            {(formData.mapType === 'image_map' || formData.mapType === 'both') && (
-                                                <div className="bg-white rounded-[32px] border border-surface-border shadow-sm p-10 space-y-6">
-                                                    <div className="space-y-1 mb-8">
-                                                        <h3 className="text-xl font-bold text-slate-900">
-                                                            내부 이미지 지도 설정 {formData.mapType === 'both' ? '(스팟 지정)' : ''}
-                                                        </h3>
-                                                        <p className="text-slate-400 text-sm">플로어플랜 등 내부 지도 이미지를 업로드하고 스팟을 표시해 주세요.</p>
-                                                    </div>
-                                                    <div className="grid grid-cols-1 md:grid-cols-12 gap-8 h-[500px]">
-                                                        {/* Left: Points List */}
-                                                        <div className="col-span-1 md:col-span-4 border-r border-slate-100 pr-6 space-y-4 overflow-y-auto custom-scrollbar">
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="font-bold text-slate-900">내부 스팟 목록</span>
-                                                                <button className="text-sm font-bold text-[#FF9B50] flex items-center gap-1 bg-orange-50 hover:bg-orange-100 transition-colors px-3 py-1.5 rounded-lg">
-                                                                    <Plus size={16} /> 스팟 추가
-                                                                </button>
-                                                            </div>
-                                                            {/* Mock Image Points */}
-                                                            {formData.spots.filter(s => s.mapType === 'image_map').map((spot, idx) => (
-                                                                <div key={spot.id} className="p-4 rounded-xl border-2 border-[#FFD1A6] bg-[#FFD1A6]/10 space-y-3 shadow-sm shadow-orange-500/5 cursor-pointer">
-                                                                    <div className="flex items-center justify-between">
-                                                                        <span className="font-bold text-[#D97706] text-sm flex items-center gap-2">
-                                                                            <div className="w-5 h-5 rounded-full bg-[#FF9B50] text-white flex items-center justify-center text-[10px]">{idx + 1}</div>
-                                                                            스팟 {idx + 1}
-                                                                        </span>
-                                                                        <button className="text-slate-400 hover:text-red-500 transition-colors"><XCircle size={16} /></button>
-                                                                    </div>
-                                                                    <input type="text" placeholder="스팟 이름" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-[#FF9B50] font-medium" defaultValue={spot.name} />
-                                                                </div>
-                                                            ))}
-                                                            {/* Add new mock spot visually */}
-                                                            <div className="p-4 rounded-xl border-2 border-slate-100 bg-slate-50 space-y-3 hover:border-slate-200 transition-colors cursor-pointer">
+                                                        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 h-[500px]">
+                                                            {/* Left: Points List */}
+                                                            <div className="col-span-1 md:col-span-4 border-r border-slate-100 pr-6 space-y-4 overflow-y-auto custom-scrollbar">
                                                                 <div className="flex items-center justify-between">
-                                                                    <span className="font-bold text-slate-700 text-sm flex items-center gap-2">
-                                                                        <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-[10px]">
-                                                                            {formData.spots.filter(s => s.mapType === 'image_map').length + 1}
+                                                                    <span className="font-bold text-slate-900">외부 스팟 목록</span>
+                                                                    <button className="text-sm font-bold text-primary flex items-center gap-1 bg-primary/10 hover:bg-primary/20 transition-colors px-3 py-1.5 rounded-lg">
+                                                                        <Plus size={16} /> 스팟 추가
+                                                                    </button>
+                                                                </div>
+                                                                {/* Mock Google Points */}
+                                                                {formData.spots.filter(s => s.mapType === 'google_map').map((spot, idx) => (
+                                                                    <div key={spot.id} className="p-4 rounded-xl border-2 border-primary bg-primary/[0.03] space-y-3 shadow-sm shadow-primary/5">
+                                                                        <div className="flex items-center justify-between">
+                                                                            <span className="font-bold text-primary text-sm flex items-center gap-2">
+                                                                                <div className="w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center text-[10px]">{idx + 1}</div>
+                                                                                스팟 {idx + 1}
+                                                                            </span>
+                                                                            <button className="text-slate-400 hover:text-red-500 transition-colors"><XCircle size={16} /></button>
                                                                         </div>
-                                                                        새 스팟
-                                                                    </span>
-                                                                    <button className="text-slate-400 hover:text-red-500 transition-colors"><XCircle size={16} /></button>
-                                                                </div>
-                                                                <input type="text" placeholder="스팟 이름 입력" className="w-full px-3 py-2 bg-white/50 border border-transparent rounded-lg text-sm outline-none pointer-events-none" />
+                                                                        <input type="text" placeholder="스팟 이름" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-primary font-medium" defaultValue={spot.name} />
+                                                                    </div>
+                                                                ))}
+                                                                {/* Empty State Mock */}
+                                                                {formData.spots.filter(s => s.mapType === 'google_map').length === 0 && (
+                                                                    <div className="p-8 text-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl">
+                                                                        <p className="text-sm text-slate-400 font-medium">우측 지도에서 위치를 클릭해<br />새 스팟을 추가하세요.</p>
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        </div>
-                                                        {/* Right: Image Upload & View Placeholder */}
-                                                        <div className="col-span-1 md:col-span-8 bg-slate-50 rounded-2xl border-2 border-slate-100 flex flex-col items-center justify-center relative overflow-hidden group hover:border-[#FF9B50]/30 transition-colors">
-                                                            <div className="text-center space-y-5">
-                                                                <div className="w-20 h-20 bg-white rounded-2xl border border-slate-200 flex items-center justify-center mx-auto shadow-sm group-hover:scale-110 transition-transform">
-                                                                    <ImageIcon size={32} className="text-slate-300" />
+                                                            {/* Right: Google Map View Placeholder */}
+                                                            <div className="col-span-1 md:col-span-8 bg-slate-50 rounded-2xl border-2 border-slate-100 flex flex-col items-center justify-center relative overflow-hidden group">
+                                                                <div className="text-center space-y-4">
+                                                                    <div className="w-20 h-20 bg-white rounded-2xl border border-slate-200 flex items-center justify-center mx-auto shadow-sm group-hover:scale-110 transition-transform">
+                                                                        <Globe size={32} className="text-slate-300" />
+                                                                    </div>
+                                                                    <div className="space-y-2">
+                                                                        <p className="font-bold text-slate-700 text-lg">Google Map View (API Placeholder)</p>
+                                                                        <p className="text-sm text-slate-400">화면을 클릭해 지도 위에 외부 스팟을 지정하세요.</p>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="space-y-2">
-                                                                    <p className="font-bold text-slate-700 text-lg">내부 지도 이미지 업로드</p>
-                                                                    <p className="text-sm text-slate-400">지도 이미지를 업로드 후 화면을 클릭해 내부 스팟을 지정하세요.</p>
+                                                                {/* Mock Pin */}
+                                                                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                                                                    <div className="relative">
+                                                                        <Map size={48} className="text-primary opacity-20" />
+                                                                        <div className="absolute -top-4 -left-4 w-6 h-6 bg-primary rounded-full shadow-lg border-2 border-white flex items-center justify-center z-10 animate-bounce">
+                                                                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
-                                                                <button className="px-6 py-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md text-sm font-bold text-slate-700 transition-all active:scale-95">이미지 선택</button>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                                                )}
+
+                                                {/* Image Map Section (Shown if image_map or both) */}
+                                                {(formData.mapType === 'image_map' || formData.mapType === 'both') && (
+                                                    <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-6">
+                                                        <div className="space-y-1 mb-8">
+                                                            <h3 className="text-xl font-bold text-slate-900">
+                                                                내부 이미지 지도 설정 {formData.mapType === 'both' ? '(스팟 지정)' : ''}
+                                                            </h3>
+                                                            <p className="text-slate-400 text-sm">플로어플랜 등 내부 지도 이미지를 업로드하고 스팟을 표시해 주세요.</p>
+                                                        </div>
+                                                        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 h-[500px]">
+                                                            {/* Left: Points List */}
+                                                            <div className="col-span-1 md:col-span-4 border-r border-slate-100 pr-6 space-y-4 overflow-y-auto custom-scrollbar">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="font-bold text-slate-900">내부 스팟 목록</span>
+                                                                    <button className="text-sm font-bold text-[#FF9B50] flex items-center gap-1 bg-orange-50 hover:bg-orange-100 transition-colors px-3 py-1.5 rounded-lg">
+                                                                        <Plus size={16} /> 스팟 추가
+                                                                    </button>
+                                                                </div>
+                                                                {/* Mock Image Points */}
+                                                                {formData.spots.filter(s => s.mapType === 'image_map').map((spot, idx) => (
+                                                                    <div key={spot.id} className="p-4 rounded-xl border-2 border-[#FFD1A6] bg-[#FFD1A6]/10 space-y-3 shadow-sm shadow-orange-500/5 cursor-pointer">
+                                                                        <div className="flex items-center justify-between">
+                                                                            <span className="font-bold text-[#D97706] text-sm flex items-center gap-2">
+                                                                                <div className="w-5 h-5 rounded-full bg-[#FF9B50] text-white flex items-center justify-center text-[10px]">{idx + 1}</div>
+                                                                                스팟 {idx + 1}
+                                                                            </span>
+                                                                            <button className="text-slate-400 hover:text-red-500 transition-colors"><XCircle size={16} /></button>
+                                                                        </div>
+                                                                        <input type="text" placeholder="스팟 이름" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-[#FF9B50] font-medium" defaultValue={spot.name} />
+                                                                    </div>
+                                                                ))}
+                                                                {/* Add new mock spot visually */}
+                                                                <div className="p-4 rounded-xl border-2 border-slate-100 bg-slate-50 space-y-3 hover:border-slate-200 transition-colors cursor-pointer">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <span className="font-bold text-slate-700 text-sm flex items-center gap-2">
+                                                                            <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-[10px]">
+                                                                                {formData.spots.filter(s => s.mapType === 'image_map').length + 1}
+                                                                            </div>
+                                                                            새 스팟
+                                                                        </span>
+                                                                        <button className="text-slate-400 hover:text-red-500 transition-colors"><XCircle size={16} /></button>
+                                                                    </div>
+                                                                    <input type="text" placeholder="스팟 이름 입력" className="w-full px-3 py-2 bg-white/50 border border-transparent rounded-lg text-sm outline-none pointer-events-none" />
+                                                                </div>
+                                                            </div>
+                                                            {/* Right: Image Upload & View Placeholder */}
+                                                            <div className="col-span-1 md:col-span-8 bg-slate-50 rounded-2xl border-2 border-slate-100 flex flex-col items-center justify-center relative overflow-hidden group hover:border-[#FF9B50]/30 transition-colors">
+                                                                <div className="text-center space-y-5">
+                                                                    <div className="w-20 h-20 bg-white rounded-2xl border border-slate-200 flex items-center justify-center mx-auto shadow-sm group-hover:scale-110 transition-transform">
+                                                                        <ImageIcon size={32} className="text-slate-300" />
+                                                                    </div>
+                                                                    <div className="space-y-2">
+                                                                        <p className="font-bold text-slate-700 text-lg">내부 지도 이미지 업로드</p>
+                                                                        <p className="text-sm text-slate-400">지도 이미지를 업로드 후 화면을 클릭해 내부 스팟을 지정하세요.</p>
+                                                                    </div>
+                                                                    <button className="px-6 py-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md text-sm font-bold text-slate-700 transition-all active:scale-95">이미지 선택</button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 
                             {currentStep === 4 && (
-                                <div className="animate-in fade-in slide-in-from-right-4 duration-500 relative">
+                                <div className="animate-in fade-in slide-in-from-right-4 duration-500 relative max-w-[1400px] mx-auto">
                                     <div className="flex flex-col md:flex-row gap-8 items-start">
                                         {/* Left: Sidebar Track List (Sticky) */}
-                                        <div className="w-full md:w-[320px] sticky top-10 flex flex-col bg-white rounded-[32px] border border-surface-border shadow-sm overflow-hidden h-[calc(100vh-140px)]">
-                                            <div className="p-6 border-b border-slate-50">
-                                                <div className="flex items-center justify-between mb-4">
-                                                    <h3 className="text-[20px] font-normal text-black">투어 트랙 관리</h3>
-                                                    <button
-                                                        onClick={addChapter}
-                                                        className="text-xs font-semibold text-primary hover:bg-primary/5 px-2 py-1 rounded-lg transition-colors"
-                                                    >
-                                                        챕터 추가하기
-                                                    </button>
-                                                </div>
-                                                <div className="bg-slate-50 rounded-xl px-4 py-2 flex items-center justify-between">
-                                                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">트랙 완성률</span>
-                                                    <span className="text-[11px] font-bold text-primary">33% (1/3)</span>
+                                        <div className="w-full md:w-[320px] sticky top-10 flex flex-col bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white overflow-hidden h-[calc(100vh-140px)]">
+                                            <div className="p-8 border-b border-slate-50">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <Map size={24} className="text-[#F47521]" />
+                                                        <h3 className="text-[20px] font-black text-slate-900">투어 트랙</h3>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={addChapter}
+                                                            className="w-10 h-10 bg-slate-50 text-slate-600 rounded-xl hover:bg-slate-100 transition-all flex items-center justify-center"
+                                                        >
+                                                            <Plus size={20} />
+                                                        </button>
+                                                        <button className="w-10 h-10 bg-slate-50 text-slate-600 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all flex items-center justify-center">
+                                                            <XCircle size={20} />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
 
-                                            <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 custom-scrollbar">
+                                            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4 custom-scrollbar">
                                                 {formData.chapters.map((chapter) => (
-                                                    <div key={chapter.id} className="space-y-2">
-                                                        <div className="flex items-center justify-between group px-2">
+                                                    <div key={chapter.id} className="space-y-3">
+                                                        <div className="flex items-center justify-between group px-3 py-2.5 bg-[#F8F9FA] rounded-2xl">
                                                             <div className="flex items-center gap-2">
                                                                 <ChevronDown size={14} className="text-slate-400" />
                                                                 {editingId === chapter.id ? (
@@ -1079,11 +932,11 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                                                                         onChange={(e) => setEditingName(e.target.value)}
                                                                         onBlur={() => updateChapterName(chapter.id, editingName)}
                                                                         onKeyDown={(e) => e.key === 'Enter' && updateChapterName(chapter.id, editingName)}
-                                                                        className="text-sm font-semibold text-slate-800 bg-white border border-primary/30 rounded px-1 outline-none"
+                                                                        className="text-sm font-bold text-slate-800 bg-white border border-primary/30 rounded px-1 outline-none w-24"
                                                                     />
                                                                 ) : (
                                                                     <span
-                                                                        className="text-sm font-semibold text-slate-800 cursor-pointer hover:text-primary transition-colors"
+                                                                        className="text-[15px] font-bold text-slate-800 cursor-pointer hover:text-primary transition-colors"
                                                                         onClick={() => { setEditingId(chapter.id); setEditingName(chapter.name); }}
                                                                     >
                                                                         {chapter.name}
@@ -1096,35 +949,41 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                                                             </div>
                                                         </div>
 
-                                                        <div className="space-y-1">
-                                                            {chapter.tracks.map((track) => (
-                                                                <div
-                                                                    key={track.id}
-                                                                    onClick={() => { setActiveTrackId(track.id); setActiveChapterId(chapter.id); }}
-                                                                    className={`group relative flex items-center justify-between gap-3 px-4 py-2 rounded-xl cursor-pointer transition-all ${activeTrackId === track.id
-                                                                        ? "bg-slate-900 shadow-lg shadow-slate-900/10"
-                                                                        : "hover:bg-slate-50"
-                                                                        }`}
-                                                                >
-                                                                    <div className="flex items-center gap-3 min-w-0">
-                                                                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${activeTrackId === track.id ? "bg-primary" : "bg-slate-300"}`} />
-                                                                        <span className={`text-[13px] font-semibold truncate ${activeTrackId === track.id ? "text-white" : "text-slate-600"}`}>
-                                                                            {track.title}
-                                                                        </span>
+                                                        <div className="space-y-2 pl-3 ml-3 border-l-[1.5px] border-slate-100">
+                                                            {chapter.tracks.map((track) => {
+                                                                const isActive = activeTrackId === track.id;
+                                                                return (
+                                                                    <div
+                                                                        key={track.id}
+                                                                        onClick={() => { setActiveTrackId(track.id); setActiveChapterId(chapter.id); }}
+                                                                        className={`group relative flex items-center justify-between gap-3 px-4 py-2.5 rounded-2xl cursor-pointer transition-all ${isActive
+                                                                            ? "bg-white border-2 border-[#F47521] shadow-lg shadow-[#F47521]/10"
+                                                                            : "bg-white border border-slate-50 hover:border-slate-200"
+                                                                            }`}
+                                                                    >
+                                                                        <div className="flex items-center gap-3 min-w-0">
+                                                                            {isActive ? (
+                                                                                <div className="w-5 h-5 rounded-full border-2 border-[#F47521] flex items-center justify-center">
+                                                                                    <div className="w-2 h-2 rounded-full bg-[#F47521]" />
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="w-2.5 h-2.5 rounded-full bg-slate-200 ml-1.5 mr-1" />
+                                                                            )}
+                                                                            <span className={`text-[14px] font-medium truncate ${isActive ? "text-[#F47521] font-bold" : "text-slate-500"}`}>
+                                                                                {track.title}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                                                            <button
+                                                                                onClick={(e) => { e.stopPropagation(); deleteTrack(chapter.id, track.id); }}
+                                                                                className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all text-slate-300"
+                                                                            >
+                                                                                <XCircle size={14} />
+                                                                            </button>
+                                                                        </div>
                                                                     </div>
-                                                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                                                        {track.audio_url && (
-                                                                            <CheckCircle2 size={12} className={activeTrackId === track.id ? "text-primary" : "text-primary"} />
-                                                                        )}
-                                                                        <button
-                                                                            onClick={(e) => { e.stopPropagation(); deleteTrack(chapter.id, track.id); }}
-                                                                            className={`opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all ${activeTrackId === track.id ? "text-slate-500" : "text-slate-400"}`}
-                                                                        >
-                                                                            <XCircle size={12} />
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
+                                                                );
+                                                            })}
                                                         </div>
                                                     </div>
                                                 ))}
@@ -1132,57 +991,76 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                                         </div>
 
                                         {/* Right: Track Content Form (Independently Scrollable) */}
-                                        <div className="w-full md:w-2/3 bg-white rounded-[32px] border border-surface-border shadow-sm p-10 h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar">
+                                        <div className="flex-1 bg-white rounded-[40px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-12 h-[calc(100vh-140px)] overflow-y-auto custom-scrollbar">
                                             <h3 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-4 mb-8 flex items-center justify-between">
                                                 오디오 / 비디오 가이드 제작
                                                 <span className="text-sm font-medium text-slate-400">트랙 {activeTrackId} 편집 중</span>
                                             </h3>
 
                                             <div className="space-y-10">
-                                                {/* Link to Spot Dropdown (Conditional) */}
-                                                {formData.mapType !== 'none' && (
-                                                    <div className="space-y-4">
-                                                        <label className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                                                            연결할 스팟 선택*
-                                                            <span className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-bold">필수</span>
-                                                        </label>
-                                                        <div className="relative">
-                                                            <select
-                                                                value={formData.tracks.find(t => t.id === activeTrackId)?.spot_id || ""}
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value;
-                                                                    setFormData(prev => ({
-                                                                        ...prev,
-                                                                        tracks: prev.tracks.map(t => t.id === activeTrackId ? { ...t, spot_id: val === 'none' ? 'none' : Number(val) } : t)
-                                                                    }));
-                                                                }}
-                                                                className="appearance-none w-full px-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 hover:bg-white hover:border-slate-200 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all font-medium text-slate-700 cursor-pointer"
-                                                            >
-                                                                <option value="">트랙이 재생될 스팟을 선택해 주세요</option>
-                                                                {formData.spots.map(spot => (
-                                                                    <option key={spot.id} value={spot.id}>
-                                                                        {spot.name} {spot.mapType === 'google_map' ? '(외부지도)' : '(내부지도)'}
-                                                                    </option>
-                                                                ))}
-                                                                <option value="none">스팟과 연결하지 않음 (이동 중 감상 등)</option>
-                                                            </select>
-                                                            <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={20} />
+                                                {/* Basic Settings: Track Name & Spot */}
+                                                <div className="space-y-8 pb-10 border-b border-slate-50">
+                                                    <h3 className="text-xl font-bold text-slate-900">기본 설정</h3>
+                                                    <div className={`grid grid-cols-1 ${isMapCategory(formData.category) ? 'md:grid-cols-2' : 'md:grid-cols-1'} gap-8`}>
+                                                        <div className="space-y-4">
+                                                            <label className="text-[14px] font-bold text-slate-700 ml-1">트랙명*</label>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="트랙 이름을 입력해 주세요"
+                                                                value={getCurrentTrack()?.title || ""}
+                                                                onChange={(e) => updateTrack({ title: e.target.value })}
+                                                                className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-[#F47521] focus:shadow-xl focus:shadow-[#F47521]/5 outline-none transition-all text-base font-medium placeholder:text-slate-300"
+                                                            />
                                                         </div>
+                                                        {isMapCategory(formData.category) && (
+                                                            <div className="space-y-4">
+                                                                <label className="text-[14px] font-bold text-slate-700 ml-1 flex items-center gap-2">
+                                                                    연결할 스팟 선택*
+                                                                    {formData.mapType !== 'none' && <span className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-bold">필수</span>}
+                                                                </label>
+                                                                <div className="relative">
+                                                                    <select
+                                                                        disabled={formData.mapType === 'none'}
+                                                                        value={getCurrentTrack()?.spot_id || ""}
+                                                                        onChange={(e) => {
+                                                                            const val = e.target.value;
+                                                                            updateTrack({ spot_id: val === 'none' ? 'none' : Number(val) });
+                                                                        }}
+                                                                        className={`appearance-none w-full px-6 py-4 rounded-2xl border-2 border-slate-100 outline-none transition-all font-medium text-slate-700 ${formData.mapType === 'none' ? 'bg-slate-100 cursor-not-allowed opacity-50' : 'bg-slate-50/50 hover:bg-white hover:border-slate-200 focus:bg-white focus:border-[#F47521] focus:shadow-xl focus:shadow-[#F47521]/5 cursor-pointer'}`}
+                                                                    >
+                                                                        <option value="">트랙이 재생될 스팟을 선택해 주세요</option>
+                                                                        {formData.spots.map(spot => (
+                                                                            <option key={spot.id} value={spot.id}>
+                                                                                {spot.name} {spot.mapType === 'google_map' ? '(외부지도)' : '(내부지도)'}
+                                                                            </option>
+                                                                        ))}
+                                                                        <option value="none">스팟과 연결하지 않음 (이동 중 감상 등)</option>
+                                                                    </select>
+                                                                    <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={20} />
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                )}
+                                                </div>
 
                                                 {/* Track File */}
-                                                <div className="space-y-4">
-                                                    <label className="font-bold text-slate-800 text-sm">트랙 파일*</label>
-                                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-6 p-6 rounded-2xl border-2 border-slate-100 bg-slate-50/50">
-                                                        <label className="px-6 py-3.5 bg-[#FFD1A6] text-[#D97706] font-bold rounded-xl hover:bg-[#FFC691] transition-all active:scale-95 whitespace-nowrap shadow-sm shadow-orange-500/10 cursor-pointer">
+                                                <div className="space-y-6">
+                                                    <h3 className="text-xl font-bold text-slate-900">트랙 파일*</h3>
+                                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-6 p-6 rounded-3xl border-2 border-slate-50 bg-[#F8F9FA]/50 group hover:bg-white hover:border-slate-200 transition-all duration-300">
+                                                        <label className="px-8 py-3.5 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all active:scale-95 whitespace-nowrap shadow-lg shadow-slate-900/10 cursor-pointer flex items-center gap-2">
+                                                            <Plus size={18} />
                                                             파일 업로드
                                                             <input type="file" className="hidden" accept="audio/*,video/*" onChange={(e) => handleFileUpload(e, 'track')} />
                                                         </label>
                                                         <div className="flex-1 space-y-3">
                                                             <div className="flex items-center justify-between text-sm">
-                                                                <span className="font-bold text-slate-700 truncate max-w-[200px]">
-                                                                    {formData.tracks.find(t => t.id === activeTrackId)?.audio_url ? "파일 업로드됨" : "파일을 선택해 주세요"}
+                                                                <span className="font-bold text-slate-700 truncate max-w-[200px] flex items-center gap-2">
+                                                                    {formData.tracks.find(t => t.id === activeTrackId)?.audio_url ? (
+                                                                        <>
+                                                                            <CheckCircle2 size={16} className="text-emerald-500" />
+                                                                            <span className="text-emerald-600">파일 업로드됨</span>
+                                                                        </>
+                                                                    ) : "파일을 선택해 주세요"}
                                                                 </span>
                                                                 <div className="flex items-center gap-4 text-slate-400">
                                                                     {formData.tracks.find(t => t.id === activeTrackId)?.audio_url && <PlayCircle size={20} className="cursor-pointer hover:text-slate-600 transition-colors" />}
@@ -1202,9 +1080,12 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                                                                 <div className={`h-full bg-primary rounded-full transition-all duration-500 ${formData.tracks.find(t => t.id === activeTrackId)?.audio_url ? 'w-full' : 'w-0'}`}></div>
                                                             </div>
                                                         </div>
-                                                        <div className="flex items-center gap-3 sm:ml-4 border-t sm:border-t-0 sm:border-l border-slate-200 pt-4 sm:pt-0 sm:pl-6">
-                                                            <div className="w-10 h-6 bg-[#FF9B50] rounded-full relative cursor-pointer shadow-inner">
-                                                                <div className="w-4 h-4 bg-white rounded-full absolute right-1 top-1 shadow-sm"></div>
+                                                        <div
+                                                            className="flex items-center gap-3 sm:ml-4 border-t sm:border-t-0 sm:border-l border-slate-200 pt-4 sm:pt-0 sm:pl-6 cursor-pointer group/toggle"
+                                                            onClick={() => updateTrack({ is_free: !getCurrentTrack()?.is_free })}
+                                                        >
+                                                            <div className={`w-12 h-6 rounded-full relative transition-all duration-300 shadow-inner ${getCurrentTrack()?.is_free ? 'bg-[#F47521]' : 'bg-slate-200'}`}>
+                                                                <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all duration-300 shadow-sm ${getCurrentTrack()?.is_free ? 'right-1' : 'left-1'}`}></div>
                                                             </div>
                                                             <div className="text-xs text-slate-500 font-bold whitespace-nowrap">
                                                                 무료 듣기<br /><span className="font-normal text-[10px] text-slate-400">체크 시 샘플 파일로 제공</span>
@@ -1215,12 +1096,15 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
 
                                                 {/* Script Area */}
                                                 <div className="space-y-6 relative">
-                                                    <h3 className="text-[26px] font-normal text-black leading-tight">스크립트*</h3>
-                                                    <div className="border border-slate-200 rounded-2xl bg-white focus-within:border-primary focus-within:shadow-xl focus-within:shadow-primary/5 transition-all overflow-hidden flex flex-col">
+                                                    <div className="flex flex-col gap-2">
+                                                        <h3 className="text-xl font-bold text-slate-900">스크립트*</h3>
+                                                        <p className="text-slate-400 text-base font-normal">여행자들이 현장에서 듣게 될 상세 스크립트를 작성해 주세요.</p>
+                                                    </div>
+                                                    <div className="border-2 border-slate-50 rounded-[32px] bg-[#F8F9FA]/50 focus-within:bg-white focus-within:border-[#F47521] focus-within:shadow-xl focus-within:shadow-[#F47521]/5 transition-all overflow-hidden flex flex-col p-1">
                                                         <textarea
                                                             key={`track-script-${activeTrackId}`}
                                                             placeholder={`<스크립트 작성 팁>\n• 여행자들이 이 장소에 대해 뭘 알면 좋을지, 꼭 알아야 할 중요한 내용\n• 구어체로, 실제로 말하듯이!\n• 너무 많은 정보를 나열하지 말고 간단 명료하게\n• 번역 말투, 어려운 전문적인 단어 X`}
-                                                            className="w-full h-[400px] p-6 outline-none resize-none text-[15px] leading-relaxed text-slate-700 bg-transparent flex-1"
+                                                            className="w-full h-[400px] p-8 outline-none resize-none text-[16px] leading-[1.8] text-slate-700 bg-transparent flex-1 placeholder:text-slate-300"
                                                             value={getCurrentTrack()?.script || ""}
                                                             onChange={(e) => updateTrack({ script: e.target.value })}
                                                         ></textarea>
@@ -1229,41 +1113,49 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
 
                                                 {/* Track Image Upload */}
                                                 <div className="space-y-6">
-                                                    <h3 className="text-[26px] font-normal text-black leading-tight">트랙 대표 이미지*</h3>
-                                                    <div className="flex items-center gap-6 p-6 rounded-2xl border-2 border-slate-100 bg-slate-50/50">
-                                                        <div className="w-40 h-24 rounded-xl bg-white border border-slate-100 overflow-hidden flex items-center justify-center text-slate-300">
+                                                    <div className="flex flex-col gap-2">
+                                                        <h3 className="text-xl font-bold text-slate-900">트랙 대표 이미지*</h3>
+                                                        <p className="text-slate-400 text-base font-normal">이 트랙을 가장 잘 설명하는 이미지를 업로드해 주세요.</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-8 p-8 rounded-[32px] border-2 border-slate-50 bg-[#F8F9FA]/50 hover:bg-white hover:border-slate-100 transition-all duration-300">
+                                                        <div className="w-56 h-32 rounded-2xl bg-white border border-slate-100 overflow-hidden flex items-center justify-center text-slate-300 shadow-sm">
                                                             {getCurrentTrack()?.image_url ? (
                                                                 <img src={getCurrentTrack()?.image_url} className="w-full h-full object-cover" alt="Track Preview" />
-                                                            ) : <ImageIcon size={32} />}
+                                                            ) : <ImageIcon size={40} />}
                                                         </div>
-                                                        <label className="px-6 py-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md text-sm font-bold text-slate-700 transition-all cursor-pointer">
-                                                            대표이미지 선택
-                                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'track_image')} />
-                                                        </label>
+                                                        <div className="flex flex-col gap-4">
+                                                            <label className="px-8 py-3.5 bg-white border-2 border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-slate-300 text-base font-bold text-slate-700 transition-all cursor-pointer text-center">
+                                                                대표이미지 선택
+                                                                <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'track_image')} />
+                                                            </label>
+                                                            <p className="text-xs text-slate-400 ml-1">• 1200x675 권장 / 5MB 이하</p>
+                                                        </div>
                                                     </div>
                                                 </div>
 
                                                 {/* Artwork Information (Conditional) */}
                                                 {formData.contentType === 'audio_video' && formData.category === 'museum' && (
-                                                    <div className="space-y-8 pt-8 border-t border-slate-100">
-                                                        <h3 className="text-[26px] font-normal text-black">작품 정보</h3>
-                                                        <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                                                    <div className="space-y-8 pt-10 border-t border-slate-50 animate-in fade-in duration-500">
+                                                        <div className="flex flex-col gap-2">
+                                                            <h3 className="text-xl font-bold text-slate-900">작품 정보</h3>
+                                                            <p className="text-slate-400 text-base font-normal">오디오 가이드를 위해 작품의 상세 정보를 입력해 주세요.</p>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-x-10 gap-y-8 bg-[#F8F9FA]/30 p-10 rounded-[32px] border border-slate-50">
                                                             {[
-                                                                { label: '작품명 (한글명)*', key: 'artwork_title_ko', placeholder: '작품의 한글 이름을 입력하세요' },
                                                                 { label: '작품명 (원어)*', key: 'artwork_title_orig', placeholder: 'Original title' },
+                                                                { label: '작품명 (한글명)*', key: 'artwork_title_ko', placeholder: '작품의 한글 이름을 입력하세요' },
+                                                                { label: '작가명 (원어명)*', key: 'artist_name_orig', placeholder: 'Original artist name' },
                                                                 { label: '작가명 (한글명)*', key: 'artist_name_ko', placeholder: '작가의 한글 이름을 입력하세요' },
                                                                 { label: '공식 홈페이지 작품 정보 URL*', key: 'artwork_url', placeholder: 'https://...' },
-                                                                { label: '전시 방 위치', key: 'room_location', placeholder: '예: 1층 3번 방' },
-                                                                { label: '작품 번호', key: 'sequence_number', placeholder: '예: 105' },
                                                             ].map((field) => (
-                                                                <div key={field.key} className="space-y-2">
-                                                                    <label className="text-sm font-semibold text-slate-500 ml-1">{field.label}</label>
+                                                                <div key={field.key} className={`${field.key === 'artwork_url' ? 'col-span-2' : ''} space-y-3`}>
+                                                                    <label className="text-[14px] font-bold text-slate-700 ml-1">{field.label}</label>
                                                                     <input
                                                                         type="text"
                                                                         placeholder={field.placeholder}
                                                                         value={(getCurrentTrack() as any)?.[field.key] || ""}
                                                                         onChange={(e) => updateTrack({ [field.key]: e.target.value })}
-                                                                        className="w-full px-5 py-3 rounded-xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary outline-none transition-all text-sm font-medium"
+                                                                        className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 bg-white focus:border-[#F47521] focus:shadow-xl focus:shadow-[#F47521]/5 outline-none transition-all text-base font-medium placeholder:text-slate-300"
                                                                     />
                                                                 </div>
                                                             ))}
@@ -1277,6 +1169,144 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                             )}
 
                             {currentStep === 5 && (
+                                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                                    {/* 1. 콘텐츠 이름 */}
+                                    <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-6">
+                                        <div className="flex flex-col space-y-2 mb-8">
+                                            <h3 className="text-xl font-bold text-slate-900">콘텐츠 이름*</h3>
+                                            <p className="text-slate-400 text-base font-normal">등록하시고자 하는 콘텐츠의 특성과 지역이 잘 드러나는 키워드를 사용해 주세요.</p>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <input
+                                                type="text"
+                                                maxLength={50}
+                                                placeholder="콘텐츠 이름을 입력해 주세요."
+                                                value={formData.title}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                                                className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all font-medium text-lg"
+                                            />
+                                            <div className="text-xs text-slate-400 space-y-1 ml-1 leading-relaxed">
+                                                <p>• 50자 제한 / 이모티콘 및 특수문자 사용 불가</p>
+                                                <p>• 등록하시고자 하는 콘텐츠의 특성과 지역이 잘 드러나는 키워드를 사용해 주세요.</p>
+                                                <p>• 기존 콘텐츠 이름과 중복될 시 콘텐츠 등록이 반려됩니다.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 2. 콘텐츠 소개글 */}
+                                    <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-6">
+                                        <div className="flex flex-col space-y-2 mb-8">
+                                            <h3 className="text-xl font-bold text-slate-900">콘텐츠 소개글*</h3>
+                                            <p className="text-slate-400 text-base font-normal">여행자에게 이 콘텐츠의 매력을 상세하게 설명해 주세요. (최대 1000자)</p>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <textarea
+                                                placeholder={`<소개글 작성 추천 요소>\n• 이 투어가 왜 특별한지\n• 이 장소를 왜 추천하는지, 그리고 그냥 방문하면 무엇을 놓치게 되는지\n• 이 투어를 통해 여행자가 무엇을 알고 무엇을 느끼게 될지\n• 이 투어가 어떤 방식으로 진행되는지, 어떤 포인트를 다루는지\n• 어떤 여행자에게 특히 잘 맞는지\n\n[예시]\n우피치 미술관은 르네상스가 태어난 도시 피렌체를 대표하는 세계 최고의 미술관입니다.\n하지만 수많은 명화 속에 담긴 의미와 이야기를 모르고 보면, 그냥 '유명한 그림들'로만 지나치기 쉽습니다.\n이 투어는 르네상스 시대 사람들의 생각이 어떻게 바뀌었는지, 화가들이 그것을 어떻게 그림 속에 담아냈는지를 작품과 함께 쉽고 재미있게 풀어드립니다.`}
+                                                value={formData.description}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                                                className="w-full px-6 py-6 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all font-medium text-base min-h-[400px] leading-relaxed resize-none"
+                                            />
+                                            <p className="text-xs text-slate-400 ml-1">• 최소 500자 최대 1000자 제한 (공백포함)</p>
+                                        </div>
+                                    </div>
+
+                                    {/* 3. 콘텐츠 가격 */}
+                                    <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-6">
+                                        <div className="flex flex-col space-y-2 mb-8">
+                                            <h3 className="text-xl font-bold text-slate-900">콘텐츠 가격*</h3>
+                                            <p className="text-slate-400 text-base font-normal">판매하실 가격을 설정해 주세요.</p>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="relative flex-1 max-w-xs group">
+                                                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-900 font-bold">₩</div>
+                                                <input
+                                                    type="text"
+                                                    placeholder="가격 입력"
+                                                    value={formData.price}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value.replace(/[^0-9]/g, '');
+                                                        setFormData(prev => ({ ...prev, price: val ? Number(val).toLocaleString() : '' }));
+                                                    }}
+                                                    className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all font-bold text-lg text-right"
+                                                />
+                                            </div>
+                                            <span className="text-slate-400 font-medium">KRW (₩) 기준</span>
+                                        </div>
+                                    </div>
+
+                                    {/* 4. 이미지 업로드 */}
+                                    <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-8">
+                                        <div className="flex flex-col space-y-2 mb-8">
+                                            <h3 className="text-xl font-bold text-slate-900">이미지 업로드*</h3>
+                                            <p className="text-slate-400 text-base font-normal">권장 규격 1200*645, 용량 5mb 미만</p>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 gap-4 max-w-2xl">
+                                            {/* Thumbnail */}
+                                            <div className="group relative flex items-center gap-6 p-6 rounded-3xl border-2 border-primary/20 bg-primary/5 hover:border-primary/40 transition-all">
+                                                <div className="w-32 h-20 rounded-xl bg-white border border-slate-100 overflow-hidden flex items-center justify-center text-slate-300">
+                                                    {formData.thumbnailPreview ? (
+                                                        <img src={formData.thumbnailPreview} className="w-full h-full object-cover" alt="Thumbnail Preview" />
+                                                    ) : <ImageIcon size={32} />}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <span className="block text-base font-bold text-slate-900 mb-1">대표사진*</span>
+                                                    <div className="flex items-center gap-3">
+                                                        <label className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-sm rounded-xl transition-all cursor-pointer">
+                                                            파일 선택
+                                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'thumbnail')} />
+                                                        </label>
+                                                        {formData.thumbnailPreview && (
+                                                            <div className="flex gap-2">
+                                                                <button className="p-2 text-slate-400 hover:text-slate-600 transition-colors"><Layers size={20} /></button>
+                                                                <button
+                                                                    onClick={() => setFormData(prev => ({ ...prev, thumbnailUrl: "", thumbnailPreview: "" }))}
+                                                                    className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                                                                >
+                                                                    <XCircle size={20} />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 5. 콘텐츠 파일 업로드 (Only for Ebook - previously in step 3) */}
+                                    {formData.contentType === 'electronic_book' && (
+                                        <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-6">
+                                            <div className="flex flex-col space-y-2 mb-8">
+                                                <h3 className="text-xl font-bold text-slate-900">epub 파일 업로드*</h3>
+                                                <p className="text-slate-400 text-base font-normal">.epub 형식의 파일을 선택해 주세요.</p>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <label className="px-10 py-6 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-lg rounded-2xl transition-all flex items-center gap-3 border-2 border-dashed border-primary/30 cursor-pointer">
+                                                    {formData.epubFileName ? <FileText size={24} /> : <Plus size={24} />}
+                                                    {formData.epubFileName || "파일 선택"}
+                                                    <input
+                                                        type="file"
+                                                        className="hidden"
+                                                        accept=".epub"
+                                                        onChange={(e) => handleFileUpload(e, 'epub')}
+                                                    />
+                                                </label>
+                                                {formData.epubFileName && (
+                                                    <button
+                                                        onClick={() => setFormData(prev => ({ ...prev, epubUrl: "", epubFileName: "" }))}
+                                                        className="p-3 text-slate-300 hover:text-red-500 transition-colors"
+                                                    >
+                                                        <XCircle size={24} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-slate-400 ml-1">• .epub 형식의 파일만 업로드 가능합니다.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {currentStep === 6 && (
                                 <div className="bg-white rounded-[40px] border border-surface-border shadow-sm p-16 animate-in fade-in zoom-in-95 duration-700 text-center space-y-8">
                                     <div className="w-24 h-24 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-inner">
                                         <CheckCircle2 size={48} />
@@ -1306,12 +1336,22 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                         <div className="max-w-[1400px] mx-auto px-10 py-3 flex justify-end gap-3">
                             <button
                                 onClick={() => {
-                                    if (currentStep === 5) {
-                                        setCurrentStep(formData.contentType === 'electronic_book' ? 3 : 4);
+                                    if (currentStep === 6) {
+                                        setCurrentStep(5);
+                                    } else if (currentStep === 5) {
+                                        if (formData.contentType === 'electronic_book') {
+                                            setCurrentStep(1);
+                                        } else {
+                                            setCurrentStep(4);
+                                        }
                                     } else if (currentStep === 4) {
-                                        setCurrentStep(formData.mapType === 'none' ? 2 : 3);
+                                        if (!isMapCategory(formData.category)) {
+                                            setCurrentStep(1);
+                                        } else {
+                                            setCurrentStep(formData.mapType === 'none' ? 2 : 3);
+                                        }
                                     } else if (currentStep === 3) {
-                                        setCurrentStep(formData.contentType === 'electronic_book' ? 1 : 2);
+                                        setCurrentStep(2);
                                     } else {
                                         setCurrentStep(prev => Math.max(1, prev - 1));
                                     }
@@ -1326,7 +1366,7 @@ function ContentRegistrationForm({ onBack, onList, onRefresh }: ContentRegistrat
                                 className="px-10 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-xl shadow-slate-900/10 transition-all active:scale-[0.98] flex items-center gap-2 text-sm"
                             >
                                 {loading ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : null}
-                                {currentStep === 5 ? "최종 저장 및 완료" : "저장 및 다음 단계로"}
+                                {currentStep === 6 ? "최종 저장 및 완료" : "저장 및 다음 단계로"}
                             </button>
                         </div>
                     </div>
