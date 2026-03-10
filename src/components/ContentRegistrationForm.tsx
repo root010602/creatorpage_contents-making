@@ -376,13 +376,8 @@ function ContentRegistrationForm({ onList, onRefresh }: ContentRegistrationFormP
         const isDetailPageStep = currentStep === 5;
 
         if (isDetailPageStep) {
-            // Validation check (all fields required)
-            if (!formData.title || !formData.description || !formData.price || !formData.thumbnailUrl) {
-                alert("모든 필수 항목을 입력해 주세요 (콘텐츠 이름, 소개글, 가격, 대표 이미지).");
-                return;
-            }
-            const success = await saveData();
-            if (!success) return;
+            // saveData will still run, but won't block navigation even if fields are empty
+            await saveData();
         }
 
         if (currentStep === 6) {
