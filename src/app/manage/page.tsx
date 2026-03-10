@@ -97,8 +97,15 @@ export default function ManageContent() {
         }
     };
 
+    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+
     React.useEffect(() => {
         fetchContents();
+
+        // Deep linking: If step or category is in URL, go to form view
+        if (searchParams && (searchParams.get('step') || searchParams.get('category'))) {
+            setView("form");
+        }
     }, []);
 
     const paginate = (pageNumber: number) => setCurrentPage(pageNumber);

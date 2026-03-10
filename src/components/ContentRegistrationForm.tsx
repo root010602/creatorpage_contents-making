@@ -19,6 +19,8 @@ import {
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import Image from "next/image";
 import { TopNav } from "./TopNav";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useEffect, Suspense } from "react";
 
 interface Track {
     id: number | string;
@@ -51,7 +53,10 @@ interface ContentRegistrationFormProps {
     onRefresh: () => Promise<void>;
 }
 
-function ContentRegistrationForm({ onList, onRefresh }: ContentRegistrationFormProps) {
+function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistrationFormProps) {
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
     const [loading, setLoading] = useState(false);
 
     // Multi-step Registration State
@@ -98,6 +103,36 @@ function ContentRegistrationForm({ onList, onRefresh }: ContentRegistrationFormP
     const [editingId, setEditingId] = useState<string | number | null>(null);
     const [editingName, setEditingName] = useState("");
     const [isAgreed, setIsAgreed] = useState(false);
+
+    // 1. Initial Load from URL
+    useEffect(() => {
+        const stepParam = searchParams.get('step');
+        const categoryParam = searchParams.get('category');
+
+        if (stepParam) {
+            const step = parseInt(stepParam);
+            if (!isNaN(step) && step >= 1 && step <= 7) {
+                setCurrentStep(step);
+            }
+        }
+
+        if (categoryParam) {
+            setFormData(prev => ({ ...prev, category: categoryParam }));
+        }
+    }, []); // Only on mount
+
+    // 2. Sync State to URL
+    useEffect(() => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('step', currentStep.toString());
+        if (formData.category) {
+            params.set('category', formData.category);
+        } else {
+            params.delete('category');
+        }
+
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }, [currentStep, formData.category, pathname, router, searchParams]);
 
     // Helper to check if the current category requires a map
     const isMapCategory = (catId: string) => {
@@ -1469,4 +1504,10 @@ function ContentRegistrationForm({ onList, onRefresh }: ContentRegistrationFormP
     );
 };
 
-export default ContentRegistrationForm;
+export default function ContentRegistrationForm(props: ContentRegistrationFormProps) {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-[#FCFBF9] flex items-center justify-center">기타 설정 로딩 중...</div>}>
+            <ContentRegistrationFormInner {...props} />
+        </Suspense>
+    );
+}
