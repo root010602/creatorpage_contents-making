@@ -464,7 +464,7 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
             <div className="pt-16 pb-20">
                 <div className="w-full px-6 md:px-10 py-10">
                     <h2 className="text-3xl font-extrabold text-slate-900 mb-8 max-w-[1400px] mx-auto px-4">
-                        콘텐츠 제작 및 등록
+                        콘텐츠 등록 및 수정
                     </h2>
                     {/* Stepper Navigation Card */}
                     {currentStep < 7 && (
@@ -499,7 +499,7 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                             <div className="mt-24 pt-10 border-t border-slate-50 text-slate-400 text-base font-normal flex items-center justify-between">
                                 <div className="flex items-center gap-4">
                                     <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                                    <p className="tracking-tight text-lg">콘텐츠 정보를 단계별로 입력해 주세요. (심사가 진행됩니다)</p>
+                                    <p className="tracking-tight text-lg">콘텐츠 정보를 단계별로 입력해 주세요</p>
                                 </div>
                                 <div className="text-right">
                                     <span className="text-3xl font-normal text-slate-900">{String(currentStep).padStart(2, '0')}</span>
@@ -563,9 +563,9 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                             {[
                                                 { id: 'attraction', label: '명소', desc: '유적지, 랜드마크' },
                                                 { id: 'city_tour', label: '시티투어', desc: '워킹투어, 야경투어' },
-                                                { id: 'story', label: '여행이야기', desc: '지식, 인문학' },
+                                                { id: 'museum', label: '미술관 / 박물관', desc: '전시 해설, 추천 동선' },
                                                 { id: 'guidebook', label: '가이드북', desc: '리얼 가이드, 매뉴얼' },
-                                                { id: 'museum', label: '미술관 / 박물관', desc: '전시 해설, 추천 동선' }
+                                                { id: 'story', label: '여행이야기', desc: '지식, 인문학' }
                                             ].map((cat) => (
                                                 <button
                                                     key={cat.id}
@@ -943,9 +943,6 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                                             className="w-10 h-10 bg-slate-50 text-slate-600 rounded-xl hover:bg-slate-100 transition-all flex items-center justify-center"
                                                         >
                                                             <Plus size={20} />
-                                                        </button>
-                                                        <button className="w-10 h-10 bg-slate-50 text-slate-600 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all flex items-center justify-center">
-                                                            <XCircle size={20} />
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1343,7 +1340,7 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                     {/* 1. 웹 배포 미리보기 */}
                                     <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-8">
                                         <div className="flex flex-col space-y-2">
-                                            <h3 className="text-xl font-bold text-slate-900">웹 배포 미리보기</h3>
+                                            <h3 className="text-xl font-bold text-slate-900">웹 미리보기</h3>
                                             <p className="text-slate-400 text-base font-normal">심사 요청 전, 여행자들이 보게 될 실제 웹 화면을 미리 확인해 보세요.</p>
                                         </div>
 
@@ -1352,14 +1349,14 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                                 <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
                                                     <Globe size={24} />
                                                 </div>
-                                                <p className="text-slate-600 font-medium">실제 배포 시 어떻게 보일지 궁금하신가요?</p>
+                                                <p className="text-slate-600 font-medium">실제 판매 시 어떻게 보일지 궁금하신가요?</p>
                                             </div>
                                             <button
                                                 onClick={() => window.open('https://tourlive.co.kr/preview', '_blank')}
                                                 className="px-8 py-3.5 bg-white border-2 border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-slate-300 text-base font-bold text-slate-700 transition-all flex items-center gap-2"
                                             >
                                                 <PlayCircle size={18} className="text-primary" />
-                                                한 번 배포해보기
+                                                투어라이브에서 미리보기
                                             </button>
                                         </div>
                                     </div>
