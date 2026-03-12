@@ -1340,12 +1340,33 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                     {/* 1. 앱 화면 확인하기 */}
                                     <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-8">
                                         <div className="flex flex-col space-y-2">
-                                            <h3 className="text-xl font-bold text-slate-900">앱 화면 확인하기</h3>
-                                            <p className="text-slate-400 text-base font-normal">심사 요청 전, 여행자들이 앱에서 보게 될 실제 화면을 미리 확인해 보세요.</p>
+                                            <h3 className="text-xl font-bold text-slate-900">앱에서 최종 확인하기</h3>
+                                            <p className="text-slate-400 text-base font-normal">직접 만든 콘텐츠를 투어라이브 앱에서 확인하세요</p>
                                         </div>
 
                                         <div className="p-8 rounded-[32px] bg-slate-50/50 border-2 border-slate-50 space-y-6">
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                {/* Left: App Preview Card */}
+                                                <div className="bg-white/50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-center items-center text-center space-y-4">
+                                                    <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                                                        <Globe size={24} />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <p className="text-slate-900 font-bold">앱에서 미리보기</p>
+                                                        <p className="text-xs text-primary font-bold bg-primary/5 px-2 py-1 rounded-lg inline-block">
+                                                            [필수] 아래 버튼을 눌러야 앱에서 미리 확인하실 수 있습니다
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => window.open('https://tourlive.co.kr/preview', '_blank')}
+                                                        className="w-full py-3 bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md hover:border-slate-300 text-sm font-bold text-slate-700 transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <PlayCircle size={16} className="text-primary" />
+                                                        투어라이브 앱에서 확인하기
+                                                    </button>
+                                                </div>
+
+                                                {/* Right: Checklist */}
                                                 <div className="space-y-4">
                                                     <h4 className="font-bold text-slate-900 flex items-center gap-2">
                                                         <CheckCircle2 size={18} className="text-primary" />
@@ -1353,35 +1374,19 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                                     </h4>
                                                     <ul className="space-y-2 pl-2">
                                                         {[
-                                                            "투어 상세 페이지 UI가 정상적으로 보이는지",
+                                                            "투어 상세 페이지가 정상적으로 보이는지",
                                                             "스크립트에 오타는 없는지",
-                                                            "파일이 등록되어 재생에 문제가 없는지",
-                                                            "지도 핀 위치가 정확한지",
-                                                            "썸네일과 트랙 이미지가 고화질로 잘 적용되었는지",
-                                                            "투어 가격 및 무료 듣기 설정이 의도한 대로 되었는지"
+                                                            "재생에 문제가 없는지",
+                                                            "지도 위치가 정확한지",
+                                                            "이미지가 잘 깨지지 않고 잘 보이는지",
+                                                            <>투어 가격 반영이 되었는지,<br />무료 듣기 설정이 의도한 대로 되었는지</>
                                                         ].map((item, i) => (
                                                             <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
                                                                 <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 flex-shrink-0" />
-                                                                {item}
+                                                                <span className="leading-relaxed">{item}</span>
                                                             </li>
                                                         ))}
                                                     </ul>
-                                                </div>
-                                                <div className="bg-white/50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-center items-center text-center space-y-4">
-                                                    <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-                                                        <Globe size={24} />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <p className="text-slate-900 font-bold">앱에서 미리보기</p>
-                                                        <p className="text-xs text-slate-400">투어라이브 앱에서 실제 콘텐츠를 체험해보세요.</p>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => window.open('https://tourlive.co.kr/preview', '_blank')}
-                                                        className="w-full py-3 bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md hover:border-slate-300 text-sm font-bold text-slate-700 transition-all flex items-center justify-center gap-2"
-                                                    >
-                                                        <PlayCircle size={16} className="text-primary" />
-                                                        투어라이브 앱에서 미리보기
-                                                    </button>
                                                 </div>
                                             </div>
 
