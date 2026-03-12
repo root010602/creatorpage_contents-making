@@ -1246,20 +1246,26 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                             <p className="text-slate-400 text-base font-normal">판매하실 가격을 설정해 주세요.</p>
                                         </div>
                                         <div className="flex items-center gap-4">
-                                            <div className="relative flex-1 max-w-xs group">
-                                                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-900 font-bold">₩</div>
-                                                <input
-                                                    type="text"
-                                                    placeholder="가격 입력"
-                                                    value={formData.price}
+                                            <div className="relative flex-1 max-w-sm group">
+                                                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-900 font-bold z-10">₩</div>
+                                                <select
+                                                    value={formData.price.replace(/,/g, '')}
                                                     onChange={(e) => {
-                                                        const val = e.target.value.replace(/[^0-9]/g, '');
+                                                        const val = e.target.value;
                                                         setFormData(prev => ({ ...prev, price: val ? Number(val).toLocaleString() : '' }));
                                                     }}
-                                                    className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all font-bold text-lg text-right"
-                                                />
+                                                    className="w-full pl-12 pr-12 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all font-bold text-lg appearance-none cursor-pointer"
+                                                >
+                                                    <option value="">가격을 선택해 주세요</option>
+                                                    {[3900, 5900, 9900, ...Array.from({ length: 25 }, (_, i) => 11000 + i * 1000)].map(price => (
+                                                        <option key={price} value={price}>
+                                                            {price.toLocaleString()}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={20} />
                                             </div>
-                                            <span className="text-slate-400 font-medium">KRW (₩) 기준</span>
+                                            <span className="text-slate-400 font-medium whitespace-nowrap">KRW (₩) 기준</span>
                                         </div>
                                     </div>
 
