@@ -1352,9 +1352,8 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                                         <Globe size={24} />
                                                     </div>
                                                     <div className="space-y-1">
-                                                        <p className="text-slate-900 font-bold">앱에서 미리보기</p>
-                                                        <p className="text-xs text-primary font-bold bg-primary/5 px-2 py-1 rounded-lg inline-block">
-                                                            [필수] 아래 버튼을 눌러야 앱에서 미리 확인하실 수 있습니다
+                                                        <p className="text-slate-900 font-bold">
+                                                            [필수] 아래 버튼을 눌러야 앱에서 확인하실 수 있습니다
                                                         </p>
                                                     </div>
                                                     <button
@@ -1379,7 +1378,8 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                                             "재생에 문제가 없는지",
                                                             "지도 위치가 정확한지",
                                                             "이미지가 잘 깨지지 않고 잘 보이는지",
-                                                            <>투어 가격 반영이 되었는지,<br />무료 듣기 설정이 의도한 대로 되었는지</>
+                                                            "투어 가격 반영이 되었는지",
+                                                            "[오디오/비디오] 콘텐츠의 경우 무료 듣기 설정이 의도한 대로 되었는지"
                                                         ].map((item, i) => (
                                                             <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
                                                                 <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 flex-shrink-0" />
