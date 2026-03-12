@@ -145,7 +145,7 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
             return [
                 { id: 1, label: '카테고리 선택' },
                 { id: 5, label: '상세 페이지 제작' },
-                { id: 6, label: '웹 배포 및 심사 요청' },
+                { id: 6, label: '최종 확인' },
                 { id: 7, label: '등록 완료' }
             ];
         }
@@ -157,7 +157,7 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
             { id: 3, label: '위치 설정' },
             { id: 4, label: '트랙 제작' },
             { id: 5, label: '상세 페이지 제작' },
-            { id: 6, label: '웹 배포 및 심사 요청' },
+            { id: 6, label: '최종 확인' },
             { id: 7, label: '등록 완료' }
         ];
     };
@@ -1337,34 +1337,73 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
 
                             {currentStep === 6 && (
                                 <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500">
-                                    {/* 1. 웹 배포 미리보기 */}
+                                    {/* 1. 앱 화면 확인하기 */}
                                     <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-8">
                                         <div className="flex flex-col space-y-2">
-                                            <h3 className="text-xl font-bold text-slate-900">웹 미리보기</h3>
-                                            <p className="text-slate-400 text-base font-normal">심사 요청 전, 여행자들이 보게 될 실제 웹 화면을 미리 확인해 보세요.</p>
+                                            <h3 className="text-xl font-bold text-slate-900">앱 화면 확인하기</h3>
+                                            <p className="text-slate-400 text-base font-normal">심사 요청 전, 여행자들이 앱에서 보게 될 실제 화면을 미리 확인해 보세요.</p>
                                         </div>
 
-                                        <div className="flex items-center justify-between p-8 rounded-[32px] bg-slate-50/50 border-2 border-slate-50">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-                                                    <Globe size={24} />
+                                        <div className="p-8 rounded-[32px] bg-slate-50/50 border-2 border-slate-50 space-y-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="space-y-4">
+                                                    <h4 className="font-bold text-slate-900 flex items-center gap-2">
+                                                        <CheckCircle2 size={18} className="text-primary" />
+                                                        최종 체크리스트
+                                                    </h4>
+                                                    <ul className="space-y-2 pl-2">
+                                                        {[
+                                                            "투어 상세 페이지 UI가 정상적으로 보이는지",
+                                                            "스크립트에 오타는 없는지",
+                                                            "파일이 등록되어 재생에 문제가 없는지",
+                                                            "지도 핀 위치가 정확한지",
+                                                            "썸네일과 트랙 이미지가 고화질로 잘 적용되었는지",
+                                                            "투어 가격 및 무료 듣기 설정이 의도한 대로 되었는지"
+                                                        ].map((item, i) => (
+                                                            <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 flex-shrink-0" />
+                                                                {item}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
                                                 </div>
-                                                <p className="text-slate-600 font-medium">실제 판매 시 어떻게 보일지 궁금하신가요?</p>
+                                                <div className="bg-white/50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-center items-center text-center space-y-4">
+                                                    <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                                                        <Globe size={24} />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <p className="text-slate-900 font-bold">앱에서 미리보기</p>
+                                                        <p className="text-xs text-slate-400">투어라이브 앱에서 실제 콘텐츠를 체험해보세요.</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => window.open('https://tourlive.co.kr/preview', '_blank')}
+                                                        className="w-full py-3 bg-white border-2 border-slate-200 rounded-xl shadow-sm hover:shadow-md hover:border-slate-300 text-sm font-bold text-slate-700 transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <PlayCircle size={16} className="text-primary" />
+                                                        투어라이브 앱에서 미리보기
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <button
-                                                onClick={() => window.open('https://tourlive.co.kr/preview', '_blank')}
-                                                className="px-8 py-3.5 bg-white border-2 border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-slate-300 text-base font-bold text-slate-700 transition-all flex items-center gap-2"
-                                            >
-                                                <PlayCircle size={18} className="text-primary" />
-                                                투어라이브에서 미리보기
-                                            </button>
+
+                                            {/* Placeholder for App Confirmation Method */}
+                                            <div className="pt-6 border-t border-slate-100">
+                                                <div className="bg-primary/5 rounded-2xl p-6 border border-primary/10">
+                                                    <h4 className="text-sm font-bold text-primary mb-2 flex items-center gap-2">
+                                                        <Layers size={16} />
+                                                        앱에서 확인하는 방법
+                                                    </h4>
+                                                    <div className="text-sm text-slate-500 bg-white/40 rounded-xl p-4 border border-dashed border-primary/20">
+                                                        <p>※ 크리에이터 전용 시크릿 경로를 통한 확인 방법이 곧 안내될 예정입니다.</p>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
                                     {/* 2. 심사 요청 가이드라인 */}
                                     <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-10">
                                         <div className="space-y-4">
-                                            <h3 className="text-xl font-bold text-slate-900">심사 요청 전 반드시 확인하세요</h3>
+                                            <h3 className="text-xl font-bold text-slate-900">반드시 최종 확인하세요</h3>
                                             <p className="text-[#F47521] text-base font-bold">아래 금지 항목이 포함된 콘텐츠는 심사 반려 또는 제재 대상이 됩니다.</p>
                                         </div>
 
@@ -1426,7 +1465,7 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                         <h3 className="text-3xl font-black text-slate-900">심사 요청 완료!</h3>
                                         <p className="text-slate-500 text-lg leading-relaxed max-w-md mx-auto">
                                             축하합니다! 콘텐츠 심사 요청이 성공적으로 완료되었습니다.<br />
-                                            관리자의 승인 후 정식 배포될 예정입니다.
+                                            관리자의 승인 후 정식 판매될 예정입니다.
                                         </p>
                                     </div>
                                     <div className="pt-6">
