@@ -1377,7 +1377,7 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                                             "스크립트에 오타는 없는지",
                                                             "재생에 문제가 없는지",
                                                             "지도 위치가 정확한지",
-                                                            "이미지가 잘 깨지지 않고 잘 보이는지",
+                                                            "이미지가 깨지지 않고 잘 보이는지",
                                                             "투어 가격 반영이 되었는지",
                                                             "[오디오/비디오] 콘텐츠의 경우 무료 듣기 설정이 의도한 대로 되었는지"
                                                         ].map((item, i) => (
@@ -1408,7 +1408,7 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                     {/* 2. 심사 요청 가이드라인 */}
                                     <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-10">
                                         <div className="space-y-4">
-                                            <h3 className="text-xl font-bold text-slate-900">반드시 최종 확인하세요</h3>
+                                            <h3 className="text-xl font-bold text-slate-900">최종 검수하기</h3>
                                             <p className="text-[#F47521] text-base font-bold">아래 금지 항목이 포함된 콘텐츠는 심사 반려 또는 제재 대상이 됩니다.</p>
                                         </div>
 
