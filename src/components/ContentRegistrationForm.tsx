@@ -151,6 +151,16 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
         }
 
         // For Audio/Video
+        if (formData.category && !isMapCategory(formData.category)) {
+            return [
+                { id: 1, label: '카테고리 선택' },
+                { id: 4, label: '트랙 제작' },
+                { id: 5, label: '상세 페이지 제작' },
+                { id: 6, label: '최종 확인' },
+                { id: 7, label: '등록 완료' }
+            ];
+        }
+
         return [
             { id: 1, label: '카테고리 선택' },
             { id: 2, label: '위치 및 지도 선택' },
@@ -243,8 +253,16 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
 
     const handleStepChange = (stepId: number) => {
         if (stepId === currentStep) return;
-        if (window.confirm("입력한 내용을 저장하고 이동하시겠습니까?")) {
-            handleSaveAndNext(stepId);
+        if (stepId === 1 && currentStep > 1) return; // Prevent navigating back to Step 1
+
+        if (currentStep === 1) {
+            if (window.confirm("콘텐츠 유형, 카테고리, 도시는 다음 단계로 넘어가면 수정할 수 없습니다. 이대로 진행하시겠습니까?")) {
+                handleSaveAndNext(stepId);
+            }
+        } else {
+            if (window.confirm("입력한 내용을 저장하고 이동하시겠습니까?")) {
+                handleSaveAndNext(stepId);
+            }
         }
     };
 
@@ -502,9 +520,9 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                     <p className="tracking-tight text-lg">콘텐츠 정보를 단계별로 입력해 주세요</p>
                                 </div>
                                 <div className="text-right">
-                                    <span className="text-3xl font-normal text-slate-900">{String(currentStep).padStart(2, '0')}</span>
+                                    <span className="text-3xl font-normal text-slate-900">{String(Math.max(1, steps.findIndex(s => s.id === currentStep) + 1)).padStart(2, '0')}</span>
                                     <span className="text-slate-300 mx-2 text-xl">/</span>
-                                    <span className="text-slate-300 text-xl font-normal">06</span>
+                                    <span className="text-slate-300 text-xl font-normal">{String(Math.max(1, steps.length - 1)).padStart(2, '0')}</span>
                                 </div>
                             </div>
                         </div>
@@ -1501,24 +1519,24 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                     } else if (currentStep === 6) {
                                         setCurrentStep(5);
                                     } else if (currentStep === 5) {
-                                        if (formData.contentType === 'electronic_book') {
-                                            setCurrentStep(1);
-                                        } else {
+                                        if (formData.contentType !== 'electronic_book') {
                                             setCurrentStep(4);
                                         }
                                     } else if (currentStep === 4) {
-                                        if (!isMapCategory(formData.category)) {
-                                            setCurrentStep(1);
-                                        } else {
+                                        if (isMapCategory(formData.category)) {
                                             setCurrentStep(formData.mapType === 'none' ? 2 : 3);
                                         }
                                     } else if (currentStep === 3) {
                                         setCurrentStep(2);
-                                    } else {
-                                        setCurrentStep(prev => Math.max(1, prev - 1));
                                     }
                                 }}
-                                disabled={currentStep === 1 || currentStep === 7}
+                                disabled={
+                                    currentStep === 1 ||
+                                    currentStep === 7 ||
+                                    currentStep === 2 ||
+                                    (currentStep === 4 && (!formData.category || !isMapCategory(formData.category))) ||
+                                    (currentStep === 5 && formData.contentType === 'electronic_book')
+                                }
                                 className="px-6 py-3 rounded-xl font-bold text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-20 disabled:hover:bg-transparent text-sm"
                             >
                                 이전 단계로
@@ -1526,6 +1544,12 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                             {currentStep !== 7 && (
                                 <button
                                     onClick={() => {
+                                        if (currentStep === 1) {
+                                            if (!window.confirm("콘텐츠 유형, 카테고리, 도시는 다음 단계로 넘어가면 수정할 수 없습니다. 이대로 진행하시겠습니까?")) {
+                                                return;
+                                            }
+                                        }
+                                        
                                         if (currentStep === 6) {
                                             if (!isAgreed) return;
                                             handleSaveAndNext();
