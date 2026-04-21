@@ -53,6 +53,29 @@ interface ContentRegistrationFormProps {
     onRefresh: () => Promise<void>;
 }
 
+type ImageMapDef = { id: string; name: string; imageUrl: string | null };
+
+type MapTabItem = {
+    id: string;
+    label: string;
+    badge: string;
+    badgeClass: string;
+    Icon: React.ElementType;
+    isChild: boolean;
+    tabType: 'google_map' | 'cluster' | 'image_map';
+    spotId?: number;
+    imageMapId?: string;
+};
+
+type TabSpot = { id: number; name: string; spotType: string; lat?: string; lng?: string };
+
+// MOCK: Replace with API data from Step 2 when connected
+const MOCK_IMAGE_MAPS: ImageMapDef[] = [
+    { id: 'img1', name: '베르사유 궁전 내부', imageUrl: null },
+    { id: 'img2', name: '쁘띠 트리아농',      imageUrl: null },
+    { id: 'img3', name: '그랑 트리아농',      imageUrl: null },
+];
+
 function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistrationFormProps) {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -70,7 +93,7 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
         description: "",
         museumName: "",
         museumLink: "",
-        mapType: "",
+        mapType: "both", // MOCK: force 'both' to display all tabs
         // Step 3: E-book specific
         price: "",
         thumbnailUrl: "",
@@ -80,10 +103,12 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
         epubUrl: "",
         epubFileName: "",
         // Step 3/4 A/V specific
+        indoorMapUrl: "",
+        indoorMapPreview: "",
         spots: [
-            { id: 1, name: "루브르 박물관 앞 유리 피라미드", mapType: "google_map" },
-            { id: 2, name: "모나리자 전시실", mapType: "image_map" }
-        ] as { id: number, name: string, mapType: string }[],
+            { id: 1, name: "루브르 박물관 앞 유리 피라미드", mapType: "google_map", spotType: "basic" },
+            { id: 2, name: "모나리자 전시실", mapType: "image_map", spotType: "basic" }
+        ] as { id: number, name: string, mapType: string, spotType: string }[],
         tracks: [] as Track[], // Keep for flat compatibility if needed, but primary is chapters
         chapters: [
             {
@@ -103,6 +128,123 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
     const [editingId, setEditingId] = useState<string | number | null>(null);
     const [editingName, setEditingName] = useState("");
     const [isAgreed, setIsAgreed] = useState(false);
+    const [activeMapTab, setActiveMapTab] = useState<string>('google_map');
+
+    // MOCK: Replace with API data from Step 2 when connected
+    const [imageMaps, setImageMaps] = useState<ImageMapDef[]>(MOCK_IMAGE_MAPS);
+
+    // MOCK: Replace initial values with API data when connected
+    const [mapTabs, setMapTabs] = useState<MapTabItem[]>([
+        { id: 'google_map',  label: '메인 구글맵',      badge: '외부',    badgeClass: 'bg-blue-100 text-blue-600',       Icon: Globe,     isChild: false, tabType: 'google_map' },
+        { id: 'cluster_102', label: '왕비의 촌락 일대', badge: '클러스터', badgeClass: 'bg-purple-100 text-purple-600',   Icon: Layers,    isChild: true,  tabType: 'cluster',   spotId: 102 },
+        { id: 'image_img1',  label: '베르사유 궁전 내부', badge: '내부',  badgeClass: 'bg-emerald-100 text-emerald-600', Icon: ImageIcon, isChild: false, tabType: 'image_map', imageMapId: 'img1' },
+        { id: 'image_img2',  label: '쁘띠 트리아농',    badge: '내부',    badgeClass: 'bg-emerald-100 text-emerald-600', Icon: ImageIcon, isChild: false, tabType: 'image_map', imageMapId: 'img2' },
+        { id: 'image_img3',  label: '그랑 트리아농',    badge: '내부',    badgeClass: 'bg-emerald-100 text-emerald-600', Icon: ImageIcon, isChild: false, tabType: 'image_map', imageMapId: 'img3' },
+    ]);
+
+    const [spotsByTab, setSpotsByTab] = useState<Record<string, TabSpot[]>>({
+        google_map:  [
+            { id: 101, name: '베르사유 궁전 정문', spotType: 'basic'   },
+            { id: 102, name: '왕비의 촌락 일대',   spotType: 'cluster' },
+            { id: 103, name: '베르사유 궁전 내부', spotType: 'img1'    },
+            { id: 104, name: '쁘띠 트리아농',      spotType: 'img2'    },
+        ],
+        cluster_102: [
+            { id: 201, name: '물레방아',   spotType: 'basic' },
+            { id: 202, name: '왕비의 집',  spotType: 'basic' },
+            { id: 203, name: '비둘기장',   spotType: 'basic' },
+        ],
+        image_img1: [
+            { id: 301, name: '거울의 방',   spotType: 'basic' },
+            { id: 302, name: '왕의 침실',   spotType: 'basic' },
+            { id: 303, name: '왕비의 침실', spotType: 'basic' },
+        ],
+        image_img2: [
+            { id: 401, name: '메인 홀',    spotType: 'basic' },
+            { id: 402, name: '정원 입구',  spotType: 'basic' },
+        ],
+        image_img3: [],
+    });
+
+    const handleSpotTypeChange = (spotId: number, spotName: string, newType: string, prevType: string) => {
+        if (prevType === 'cluster') {
+            const derivedTab = mapTabs.find(t => t.spotId === spotId && t.tabType === 'cluster');
+            if (derivedTab) {
+                if (!window.confirm('이 탭의 스팟 데이터가 삭제됩니다. 계속하시겠습니까?')) return;
+                setMapTabs(prev => prev.filter(t => !(t.spotId === spotId && t.tabType === 'cluster')));
+                setSpotsByTab(prev => {
+                    const next = { ...prev };
+                    delete next[derivedTab.id];
+                    return next;
+                });
+                if (activeMapTab === derivedTab.id) setActiveMapTab('google_map');
+            }
+        }
+        if (newType === 'cluster') {
+            const tabId = `cluster_${spotId}`;
+            setMapTabs(prev => {
+                const googleIdx = prev.findIndex(t => t.id === 'google_map');
+                const next = [...prev];
+                next.splice(googleIdx + 1, 0, {
+                    id: tabId, label: spotName, badge: '클러스터',
+                    badgeClass: 'bg-purple-100 text-purple-600',
+                    Icon: Layers, isChild: true, tabType: 'cluster', spotId,
+                });
+                return next;
+            });
+            setSpotsByTab(prev => ({ ...prev, [tabId]: [] }));
+        }
+        setSpotsByTab(prev => ({
+            ...prev,
+            google_map: (prev.google_map ?? []).map(s => s.id === spotId ? { ...s, spotType: newType } : s),
+        }));
+    };
+
+    const handleSpotNameChange = (spotId: number, newName: string) => {
+        setMapTabs(prev => prev.map(t => t.spotId === spotId ? { ...t, label: newName } : t));
+        setSpotsByTab(prev => ({
+            ...prev,
+            google_map: (prev.google_map ?? []).map(s => s.id === spotId ? { ...s, name: newName } : s),
+        }));
+    };
+
+    useEffect(() => {
+        const imageTabsFromDefs = (defs: ImageMapDef[]): MapTabItem[] =>
+            defs.map(im => ({
+                id: `image_${im.id}`,
+                label: im.name,
+                badge: '내부',
+                badgeClass: 'bg-emerald-100 text-emerald-600',
+                Icon: ImageIcon,
+                isChild: false,
+                tabType: 'image_map' as const,
+                imageMapId: im.id,
+            }));
+
+        setMapTabs(prev => {
+            const clusterTabs = prev.filter(t => t.tabType === 'cluster');
+            if (formData.mapType === 'google_map') {
+                return [
+                    { id: 'google_map', label: '메인 구글맵', badge: '외부', badgeClass: 'bg-blue-100 text-blue-600', Icon: Globe, isChild: false, tabType: 'google_map' as const },
+                    ...clusterTabs,
+                ];
+            } else if (formData.mapType === 'image_map') {
+                return imageTabsFromDefs(imageMaps);
+            } else {
+                return [
+                    { id: 'google_map', label: '메인 구글맵', badge: '외부', badgeClass: 'bg-blue-100 text-blue-600', Icon: Globe, isChild: false, tabType: 'google_map' as const },
+                    ...clusterTabs,
+                    ...imageTabsFromDefs(imageMaps),
+                ];
+            }
+        });
+
+        if (formData.mapType === 'google_map' || formData.mapType === 'both') {
+            setActiveMapTab('google_map');
+        } else if (formData.mapType === 'image_map' && imageMaps.length > 0) {
+            setActiveMapTab(`image_${imageMaps[0].id}`);
+        }
+    }, [formData.mapType, imageMaps]);
 
     // 1. Initial Load from URL
     useEffect(() => {
@@ -163,7 +305,7 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
 
         return [
             { id: 1, label: '카테고리 선택' },
-            { id: 2, label: '위치 및 지도 선택' },
+            { id: 2, label: formData.category === 'museum' ? '시설 정보 입력' : '위치 및 지도 선택' },
             { id: 3, label: '위치 설정' },
             { id: 4, label: '트랙 제작' },
             { id: 5, label: '상세 페이지 제작' },
@@ -289,7 +431,7 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
         return publicUrl;
     };
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'thumbnail' | 'gallery' | 'epub' | 'track' | 'track_image') => {
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'thumbnail' | 'gallery' | 'epub' | 'track' | 'track_image' | 'indoor_map') => {
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -322,6 +464,8 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                         tracks: chapter.tracks.map(t => t.id === activeTrackId ? { ...t, image_url: publicUrl } : t)
                     }))
                 }));
+            } else if (type === 'indoor_map') {
+                setFormData(prev => ({ ...prev, indoorMapUrl: publicUrl, indoorMapPreview: URL.createObjectURL(file) }));
             } else {
                 setFormData(prev => ({ ...prev, epubUrl: publicUrl, epubFileName: file.name }));
             }
@@ -587,7 +731,7 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                             ].map((cat) => (
                                                 <button
                                                     key={cat.id}
-                                                    onClick={() => setFormData(prev => ({ ...prev, category: cat.id }))}
+                                                    onClick={() => setFormData(prev => ({ ...prev, category: cat.id, mapType: cat.id === 'museum' ? 'image_map' : prev.mapType }))}
                                                     className={`flex flex-col p-6 rounded-2xl border-2 text-left transition-all duration-300 relative ${formData.category === cat.id
                                                         ? "border-primary bg-primary/[0.03] shadow-md shadow-primary/5"
                                                         : "border-slate-50 bg-slate-50/30 hover:border-slate-100 hover:bg-white"
@@ -697,112 +841,168 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                                     {/* 1. 박물관/미술관 전용 (Only if category is museum) */}
                                     {formData.category === "museum" && (
-                                        <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-8">
-                                            <div className="flex flex-col space-y-2 mb-8">
-                                                <h3 className="text-xl font-bold text-slate-900">시설 정보*</h3>
-                                                <p className="text-slate-400 text-base font-normal">박물관 또는 미술관의 정보를 입력해 주세요.</p>
-                                            </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                <div className="space-y-3">
-                                                    <label className="text-[14px] font-bold text-slate-700 ml-1">기관명 (검색/입력)</label>
-                                                    <div className="relative group">
-                                                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">
-                                                            <Search size={18} />
+                                        <>
+                                            <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-8">
+                                                <div className="flex flex-col space-y-2 mb-8">
+                                                    <h3 className="text-xl font-bold text-slate-900">시설 정보*</h3>
+                                                    <p className="text-slate-400 text-base font-normal">박물관 또는 미술관의 정보를 입력해 주세요.</p>
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                    <div className="space-y-3">
+                                                        <label className="text-[14px] font-bold text-slate-700 ml-1">기관명 (검색/입력)</label>
+                                                        <div className="relative group">
+                                                            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">
+                                                                <Search size={18} />
+                                                            </div>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="기관 이름을 입력하세요"
+                                                                value={formData.museumName}
+                                                                onChange={(e) => setFormData(prev => ({ ...prev, museumName: e.target.value }))}
+                                                                className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all placeholder:text-slate-300 font-medium"
+                                                            />
                                                         </div>
-                                                        <input
-                                                            type="text"
-                                                            placeholder="기관 이름을 입력하세요"
-                                                            value={formData.museumName}
-                                                            onChange={(e) => setFormData(prev => ({ ...prev, museumName: e.target.value }))}
-                                                            className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all placeholder:text-slate-300 font-medium"
-                                                        />
+                                                    </div>
+                                                    <div className="space-y-3">
+                                                        <label className="text-[14px] font-bold text-slate-700 ml-1">공식 홈페이지 링크 (선택)</label>
+                                                        <div className="relative group">
+                                                            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">
+                                                                <Layers size={18} className="rotate-45" />
+                                                            </div>
+                                                            <input
+                                                                type="url"
+                                                                placeholder="https://..."
+                                                                value={formData.museumLink}
+                                                                onChange={(e) => setFormData(prev => ({ ...prev, museumLink: e.target.value }))}
+                                                                className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all placeholder:text-slate-300 font-medium"
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div className="space-y-3">
-                                                    <label className="text-[14px] font-bold text-slate-700 ml-1">공식 홈페이지 링크 (선택)</label>
-                                                    <div className="relative group">
-                                                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">
-                                                            <Layers size={18} className="rotate-45" />
-                                                        </div>
-                                                        <input
-                                                            type="url"
-                                                            placeholder="https://..."
-                                                            value={formData.museumLink}
-                                                            onChange={(e) => setFormData(prev => ({ ...prev, museumLink: e.target.value }))}
-                                                            className="w-full pl-12 pr-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:shadow-xl focus:shadow-primary/5 outline-none transition-all placeholder:text-slate-300 font-medium"
-                                                        />
+                                            </div>
+
+                                            <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-8 animate-in fade-in duration-500">
+                                                <div className="flex flex-col space-y-2 mb-8">
+                                                    <h3 className="text-xl font-bold text-slate-900">시설 내부 이미지 지도*</h3>
+                                                    <p className="text-slate-400 text-base font-normal">박물관 또는 미술관의 지도를 업로드해 주세요.</p>
+                                                </div>
+                                                
+                                                <div className="flex items-center gap-6 p-8 rounded-[24px] border border-slate-100 bg-white shadow-sm hover:border-slate-200 transition-colors">
+                                                    <div className="w-48 h-32 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center text-slate-300 relative bg-slate-50">
+                                                        {formData.indoorMapPreview ? (
+                                                            <Image src={formData.indoorMapPreview} fill className="object-contain" alt="Indoor Map Preview" />
+                                                        ) : <ImageIcon size={40} className="opacity-50" />}
+                                                    </div>
+                                                    <div className="flex flex-col gap-4 items-start">
+                                                        <label className="px-6 py-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md hover:border-slate-300 text-sm font-bold text-slate-700 transition-all cursor-pointer">
+                                                            파일 업로드
+                                                            <input type="file" className="hidden" accept="image/*,.svg" onChange={(e) => handleFileUpload(e, 'indoor_map')} />
+                                                        </label>
+                                                        <p className="text-xs text-slate-400 font-medium">* svg 파일 형식만 지원합니다.</p>
                                                     </div>
                                                 </div>
+                                                <div className="pt-2">
+                                                    <button className="px-6 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+                                                        내부 이미지 지도 추가
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
+                                        </>
                                     )}
 
                                     {/* 2. 지도 활용 (Map Selection Tiles) */}
-                                    <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-8">
-                                        {!isMapCategory(formData.category) ? (
-                                            <div className="flex flex-col items-center justify-center py-20 animate-in fade-in duration-500">
-                                                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
-                                                    <XCircle size={40} className="text-slate-300" />
-                                                </div>
-                                                <h4 className="text-xl font-bold text-slate-800 mb-2">지도가 필요하지 않은 카테고리입니다</h4>
-                                                <p className="text-slate-500">선택하신 카테고리는 지도 설정 단계를 건너뜁니다.</p>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex flex-col space-y-2 mb-8">
-                                                        <h3 className="text-xl font-bold text-slate-900">지도 활용*</h3>
-                                                        <p className="text-slate-400 text-base font-normal">여행자가 길을 찾으려면 어떤 지도가 필요한가요?</p>
+                                    {formData.category !== "museum" && (
+                                        <>
+                                            <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-8">
+                                                {!isMapCategory(formData.category) ? (
+                                                    <div className="flex flex-col items-center justify-center py-20 animate-in fade-in duration-500">
+                                                        <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
+                                                            <XCircle size={40} className="text-slate-300" />
+                                                        </div>
+                                                        <h4 className="text-xl font-bold text-slate-800 mb-2">지도가 필요하지 않은 카테고리입니다</h4>
+                                                        <p className="text-slate-500">선택하신 카테고리는 지도 설정 단계를 건너뜁니다.</p>
                                                     </div>
-                                                    <button
-                                                        onClick={() => window.open('https://www.tourlive.co.kr', '_blank')}
-                                                        className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors"
-                                                    >
-                                                        예시 보기
-                                                    </button>
-                                                </div>
-
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                    {[
-                                                        { id: 'google_map', label: '외부 구글맵', desc: '팔라티노 언덕 투어, 폼페이 투어 등 명소 가이드', icon: Globe },
-                                                        { id: 'image_map', label: '내부 이미지 지도', desc: '대영 박물관, 우피치 미술관 등 실내 가이드', icon: ImageIcon },
-                                                        { id: 'both', label: '외부, 내부 모두 사용', desc: '베르사유 투어, 가우디 반일투어 등 복합 가이드', icon: Layers },
-                                                        { id: 'none', label: '필요하지 않음', desc: '여행이야기, 가이드북, 인문학 콘텐츠 등', icon: XCircle }
-                                                    ]
-                                                        .filter(map => map.id !== 'none' || !isMapCategory(formData.category))
-                                                        .map((map) => (
+                                                ) : (
+                                                    <>
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex flex-col space-y-2 mb-8">
+                                                                <h3 className="text-xl font-bold text-slate-900">지도 활용*</h3>
+                                                                <p className="text-slate-400 text-base font-normal">여행자가 길을 찾으려면 어떤 지도가 필요한가요?</p>
+                                                            </div>
                                                             <button
-                                                                key={map.id}
-                                                                onClick={() => setFormData(prev => ({ ...prev, mapType: map.id }))}
-                                                                className={`flex gap-5 p-6 rounded-[24px] border-2 text-left transition-all duration-300 relative ${formData.mapType === map.id
-                                                                    ? "border-primary bg-primary/[0.03] shadow-lg shadow-primary/5"
-                                                                    : "border-slate-100 bg-slate-50/30 hover:border-slate-200 hover:bg-white"
-                                                                    }`}
+                                                                onClick={() => window.open('https://www.tourlive.co.kr', '_blank')}
+                                                                className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors"
                                                             >
-                                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${formData.mapType === map.id ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-white text-slate-400 border border-slate-100 shadow-sm"}`}>
-                                                                    <map.icon size={22} />
-                                                                </div>
-                                                                <div className="flex-1 pr-6">
-                                                                    <span className={`block text-lg font-bold mb-1 ${formData.mapType === map.id ? "text-primary" : "text-slate-800"}`}>{map.label}</span>
-                                                                    <span className="text-sm text-slate-400 leading-snug">{map.desc}</span>
-                                                                </div>
-                                                                {formData.mapType === map.id && (
-                                                                    <div className="absolute top-4 right-4 text-primary animate-in zoom-in-50 duration-300">
-                                                                        <CheckCircle2 size={24} fill="currentColor" stroke="white" />
-                                                                    </div>
-                                                                )}
+                                                                예시 보기
                                                             </button>
-                                                        ))}
+                                                        </div>
+
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                            {[
+                                                                { id: 'google_map', label: '외부 구글맵', desc: '팔라티노 언덕 투어, 폼페이 투어 등 명소 가이드', icon: Globe },
+                                                                { id: 'image_map', label: '내부 이미지 지도', desc: '대영 박물관, 우피치 미술관 등 실내 가이드', icon: ImageIcon },
+                                                                { id: 'both', label: '외부, 내부 모두 사용', desc: '베르사유 투어, 가우디 반일투어 등 복합 가이드', icon: Layers },
+                                                                { id: 'none', label: '필요하지 않음', desc: '여행이야기, 가이드북, 인문학 콘텐츠 등', icon: XCircle }
+                                                            ]
+                                                                .filter(map => map.id !== 'none' || !isMapCategory(formData.category))
+                                                                .map((map) => (
+                                                                    <button
+                                                                        key={map.id}
+                                                                        onClick={() => setFormData(prev => ({ ...prev, mapType: map.id }))}
+                                                                        className={`flex gap-5 p-6 rounded-[24px] border-2 text-left transition-all duration-300 relative ${formData.mapType === map.id
+                                                                            ? "border-primary bg-primary/[0.03] shadow-lg shadow-primary/5"
+                                                                            : "border-slate-100 bg-slate-50/30 hover:border-slate-200 hover:bg-white"
+                                                                            }`}
+                                                                    >
+                                                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${formData.mapType === map.id ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-white text-slate-400 border border-slate-100 shadow-sm"}`}>
+                                                                            <map.icon size={22} />
+                                                                        </div>
+                                                                        <div className="flex-1 pr-6">
+                                                                            <span className={`block text-lg font-bold mb-1 ${formData.mapType === map.id ? "text-primary" : "text-slate-800"}`}>{map.label}</span>
+                                                                            <span className="text-sm text-slate-400 leading-snug">{map.desc}</span>
+                                                                        </div>
+                                                                        {formData.mapType === map.id && (
+                                                                            <div className="absolute top-4 right-4 text-primary animate-in zoom-in-50 duration-300">
+                                                                                <CheckCircle2 size={24} fill="currentColor" stroke="white" />
+                                                                            </div>
+                                                                        )}
+                                                                    </button>
+                                                                ))}
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
+
+                                            {isMapCategory(formData.category) && (formData.mapType === 'image_map' || formData.mapType === 'both') && (
+                                                <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-8 animate-in fade-in duration-500">
+                                                    <div className="flex flex-col space-y-2 mb-8">
+                                                        <h3 className="text-xl font-bold text-slate-900">시설 내부 이미지 지도*</h3>
+                                                        <p className="text-slate-400 text-base font-normal">건물 내부, 플로어플랜 등 자체 지도를 업로드해 주세요.</p>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center gap-6 p-8 rounded-[24px] border border-slate-100 bg-white shadow-sm hover:border-slate-200 transition-colors">
+                                                        <div className="w-48 h-32 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center text-slate-300 relative bg-slate-50">
+                                                            {formData.indoorMapPreview ? (
+                                                                <Image src={formData.indoorMapPreview} fill className="object-contain" alt="Indoor Map Preview" />
+                                                            ) : <ImageIcon size={40} className="opacity-50" />}
+                                                        </div>
+                                                        <div className="flex flex-col gap-4 items-start">
+                                                            <label className="px-6 py-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md hover:border-slate-300 text-sm font-bold text-slate-700 transition-all cursor-pointer">
+                                                                파일 업로드
+                                                                <input type="file" className="hidden" accept="image/*,.svg" onChange={(e) => handleFileUpload(e, 'indoor_map')} />
+                                                            </label>
+                                                            <p className="text-xs text-slate-400 font-medium">* svg 파일 형식만 지원합니다.</p>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </>
-                                        )}
-                                    </div>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
                             )}
 
                             {currentStep === 3 && formData.contentType === 'audio_video' && (
                                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                                    {/* Location Setup */}
                                     <div className="space-y-8">
                                         {!isMapCategory(formData.category) ? (
                                             <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-20 flex flex-col items-center justify-center animate-in fade-in duration-500">
@@ -813,46 +1013,36 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                                 <p className="text-slate-500">다음 단계를 통해 트랙을 바로 구성하실 수 있습니다.</p>
                                             </div>
                                         ) : (
-                                            <>
-                                                {/* Google Map Section (Shown if google_map or both) */}
-                                                {(formData.mapType === 'google_map' || formData.mapType === 'both') && (
-                                                    <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-6">
-                                                        <div className="flex flex-col space-y-2 mb-8">
-                                                            <h3 className="text-xl font-bold text-slate-900">
-                                                                외부 구글맵 설정 {formData.mapType === 'both' ? '(스팟 지정)' : ''}
-                                                            </h3>
+                                            <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-6">
+                                                {/* Tab Header */}
+                                                <div className="flex items-end gap-1 border-b border-slate-100 overflow-x-auto">
+                                                    {mapTabs.map((tab) => (
+                                                        <button
+                                                            key={tab.id}
+                                                            onClick={() => setActiveMapTab(tab.id)}
+                                                            className={`flex items-center gap-1.5 px-4 py-3 rounded-t-xl font-bold text-sm transition-all border border-b-0 -mb-px whitespace-nowrap shrink-0 ${tab.isChild ? 'ml-2' : ''} ${
+                                                                activeMapTab === tab.id
+                                                                    ? 'bg-white border-slate-100 text-slate-900 shadow-sm'
+                                                                    : 'bg-slate-50 border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                                                            }`}
+                                                        >
+                                                            {tab.isChild && <span className="text-slate-300 leading-none text-base">↳</span>}
+                                                            <tab.Icon size={14} />
+                                                            {tab.label}
+                                                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${tab.badgeClass}`}>{tab.badge}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+
+                                                {/* Tab Panel — 메인 구글맵 */}
+                                                {activeMapTab === 'google_map' && (
+                                                    <div className="space-y-6">
+                                                        <div className="flex flex-col space-y-2">
+                                                            <h3 className="text-xl font-bold text-slate-900">외부 구글맵 설정 (스팟 지정)</h3>
                                                             <p className="text-slate-400 text-base font-normal">콘텐츠가 재생될 외부 위치를 지도에 핀으로 표시해 주세요.</p>
                                                         </div>
                                                         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 h-[500px]">
-                                                            {/* Left: Points List */}
-                                                            <div className="col-span-1 md:col-span-4 border-r border-slate-100 pr-6 space-y-4 overflow-y-auto custom-scrollbar">
-                                                                <div className="flex items-center justify-between">
-                                                                    <span className="font-bold text-slate-900">외부 스팟 목록</span>
-                                                                    <button className="text-sm font-bold text-primary flex items-center gap-1 bg-primary/10 hover:bg-primary/20 transition-colors px-3 py-1.5 rounded-lg">
-                                                                        <Plus size={16} /> 스팟 추가
-                                                                    </button>
-                                                                </div>
-                                                                {/* Mock Google Points */}
-                                                                {formData.spots.filter(s => s.mapType === 'google_map').map((spot, idx) => (
-                                                                    <div key={spot.id} className="p-4 rounded-xl border-2 border-primary bg-primary/[0.03] space-y-3 shadow-sm shadow-primary/5">
-                                                                        <div className="flex items-center justify-between">
-                                                                            <span className="font-bold text-primary text-sm flex items-center gap-2">
-                                                                                <div className="w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center text-[10px]">{idx + 1}</div>
-                                                                                스팟 {idx + 1}
-                                                                            </span>
-                                                                            <button className="text-slate-400 hover:text-red-500 transition-colors"><XCircle size={16} /></button>
-                                                                        </div>
-                                                                        <input type="text" placeholder="스팟 이름" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-primary font-medium" defaultValue={spot.name} />
-                                                                    </div>
-                                                                ))}
-                                                                {/* Empty State Mock */}
-                                                                {formData.spots.filter(s => s.mapType === 'google_map').length === 0 && (
-                                                                    <div className="p-8 text-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl">
-                                                                        <p className="text-sm text-slate-400 font-medium">우측 지도에서 위치를 클릭해<br />새 스팟을 추가하세요.</p>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            {/* Right: Google Map View Placeholder */}
+                                                            {/* Left: Google Map */}
                                                             <div className="col-span-1 md:col-span-8 bg-slate-50 rounded-2xl border-2 border-slate-100 flex flex-col items-center justify-center relative overflow-hidden group">
                                                                 <div className="text-center space-y-4">
                                                                     <div className="w-20 h-20 bg-white rounded-2xl border border-slate-200 flex items-center justify-center mx-auto shadow-sm group-hover:scale-110 transition-transform">
@@ -863,7 +1053,6 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                                                         <p className="text-sm text-slate-400">화면을 클릭해 지도 위에 외부 스팟을 지정하세요.</p>
                                                                     </div>
                                                                 </div>
-                                                                {/* Mock Pin */}
                                                                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                                                                     <div className="relative">
                                                                         <Map size={48} className="text-primary opacity-20" />
@@ -873,72 +1062,176 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* Image Map Section (Shown if image_map or both) */}
-                                                {(formData.mapType === 'image_map' || formData.mapType === 'both') && (
-                                                    <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white p-10 space-y-6">
-                                                        <div className="space-y-1 mb-8">
-                                                            <h3 className="text-xl font-bold text-slate-900">
-                                                                내부 이미지 지도 설정 {formData.mapType === 'both' ? '(스팟 지정)' : ''}
-                                                            </h3>
-                                                            <p className="text-slate-400 text-sm">플로어플랜 등 내부 지도 이미지를 업로드하고 스팟을 표시해 주세요.</p>
-                                                        </div>
-                                                        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 h-[500px]">
-                                                            {/* Left: Points List */}
-                                                            <div className="col-span-1 md:col-span-4 border-r border-slate-100 pr-6 space-y-4 overflow-y-auto custom-scrollbar">
-                                                                <div className="flex items-center justify-between">
-                                                                    <span className="font-bold text-slate-900">내부 스팟 목록</span>
-                                                                    <button className="text-sm font-bold text-[#FF9B50] flex items-center gap-1 bg-orange-50 hover:bg-orange-100 transition-colors px-3 py-1.5 rounded-lg">
-                                                                        <Plus size={16} /> 스팟 추가
-                                                                    </button>
-                                                                </div>
-                                                                {/* Mock Image Points */}
-                                                                {formData.spots.filter(s => s.mapType === 'image_map').map((spot, idx) => (
-                                                                    <div key={spot.id} className="p-4 rounded-xl border-2 border-[#FFD1A6] bg-[#FFD1A6]/10 space-y-3 shadow-sm shadow-orange-500/5 cursor-pointer">
+                                                            {/* Right: Spot List */}
+                                                            <div className="col-span-1 md:col-span-4 border-l border-slate-100 pl-6 space-y-4 overflow-y-auto custom-scrollbar">
+                                                                <span className="font-bold text-slate-900">외부 스팟 목록</span>
+                                                                {(spotsByTab['google_map'] ?? []).map((spot, idx) => (
+                                                                    <div key={spot.id} className="p-4 rounded-xl border-2 border-primary bg-primary/[0.03] space-y-3 shadow-sm shadow-primary/5">
                                                                         <div className="flex items-center justify-between">
-                                                                            <span className="font-bold text-[#D97706] text-sm flex items-center gap-2">
-                                                                                <div className="w-5 h-5 rounded-full bg-[#FF9B50] text-white flex items-center justify-center text-[10px]">{idx + 1}</div>
+                                                                            <span className="font-bold text-primary text-sm flex items-center gap-2">
+                                                                                <div className="w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center text-[10px]">{idx + 1}</div>
                                                                                 스팟 {idx + 1}
                                                                             </span>
                                                                             <button className="text-slate-400 hover:text-red-500 transition-colors"><XCircle size={16} /></button>
                                                                         </div>
-                                                                        <input type="text" placeholder="스팟 이름" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-[#FF9B50] font-medium" defaultValue={spot.name} />
+                                                                        <input
+                                                                            type="text"
+                                                                            placeholder="스팟 이름"
+                                                                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-primary font-medium"
+                                                                            defaultValue={spot.name}
+                                                                            onChange={(e) => handleSpotNameChange(spot.id, e.target.value)}
+                                                                        />
+                                                                        <select
+                                                                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-primary text-slate-700"
+                                                                            value={spot.spotType}
+                                                                            onChange={(e) => handleSpotTypeChange(spot.id, spot.name, e.target.value, spot.spotType)}
+                                                                        >
+                                                                            <option value="basic">기본</option>
+                                                                            <option value="cluster">클러스터</option>
+                                                                            <option disabled>── 이미지 지도 ──</option>
+                                                                            {imageMaps.map(im => (
+                                                                                <option key={im.id} value={im.id}>{im.name}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                        {spot.spotType === 'cluster' && (
+                                                                            <p className="text-xs text-purple-400">↳ 클러스터 탭에서 세부 스팟을 설정하세요</p>
+                                                                        )}
+                                                                        {imageMaps.some(im => im.id === spot.spotType) && (
+                                                                            <p className="text-xs text-emerald-500">↳ {imageMaps.find(im => im.id === spot.spotType)?.name} 탭에서 핀을 설정하세요</p>
+                                                                        )}
+                                                                        <input
+                                                                            type="text"
+                                                                            placeholder="지도를 클릭해 좌표를 지정하세요"
+                                                                            className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-primary text-slate-600"
+                                                                            defaultValue={spot.lat ?? ''}
+                                                                        />
                                                                     </div>
                                                                 ))}
-                                                                {/* Add new mock spot visually */}
-                                                                <div className="p-4 rounded-xl border-2 border-slate-100 bg-slate-50 space-y-3 hover:border-slate-200 transition-colors cursor-pointer">
-                                                                    <div className="flex items-center justify-between">
-                                                                        <span className="font-bold text-slate-700 text-sm flex items-center gap-2">
-                                                                            <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-[10px]">
-                                                                                {formData.spots.filter(s => s.mapType === 'image_map').length + 1}
-                                                                            </div>
-                                                                            새 스팟
-                                                                        </span>
-                                                                        <button className="text-slate-400 hover:text-red-500 transition-colors"><XCircle size={16} /></button>
-                                                                    </div>
-                                                                    <input type="text" placeholder="스팟 이름 입력" className="w-full px-3 py-2 bg-white/50 border border-transparent rounded-lg text-sm outline-none pointer-events-none" />
-                                                                </div>
-                                                            </div>
-                                                            {/* Right: Image Upload & View Placeholder */}
-                                                            <div className="col-span-1 md:col-span-8 bg-slate-50 rounded-2xl border-2 border-slate-100 flex flex-col items-center justify-center relative overflow-hidden group hover:border-[#FF9B50]/30 transition-colors">
-                                                                <div className="text-center space-y-5">
-                                                                    <div className="w-20 h-20 bg-white rounded-2xl border border-slate-200 flex items-center justify-center mx-auto shadow-sm group-hover:scale-110 transition-transform">
-                                                                        <ImageIcon size={32} className="text-slate-300" />
-                                                                    </div>
-                                                                    <div className="space-y-2">
-                                                                        <p className="font-bold text-slate-700 text-lg">내부 지도 이미지 업로드</p>
-                                                                        <p className="text-sm text-slate-400">지도 이미지를 업로드 후 화면을 클릭해 내부 스팟을 지정하세요.</p>
-                                                                    </div>
-                                                                    <button className="px-6 py-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md text-sm font-bold text-slate-700 transition-all active:scale-95">이미지 선택</button>
-                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 )}
-                                            </>
+
+                                                {/* Tab Panel — 클러스터 (generic) */}
+                                                {(() => {
+                                                    const activeTab = mapTabs.find(t => t.id === activeMapTab);
+                                                    if (activeTab?.tabType !== 'cluster') return null;
+                                                    const clusterSpots = spotsByTab[activeMapTab] ?? [];
+                                                    return (
+                                                        <div className="space-y-6">
+                                                            <div className="flex flex-col space-y-2">
+                                                                <h3 className="text-xl font-bold text-slate-900">클러스터 스팟 설정 — {activeTab.label}</h3>
+                                                                <p className="text-slate-400 text-base font-normal">클러스터 내 세부 스팟 위치를 구글맵 위에 지정해 주세요.</p>
+                                                            </div>
+                                                            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 h-[500px]">
+                                                                {/* Left: Map */}
+                                                                <div className="col-span-1 md:col-span-8 bg-purple-50/30 rounded-2xl border-2 border-purple-100 flex flex-col items-center justify-center relative overflow-hidden group">
+                                                                    <div className="text-center space-y-4">
+                                                                        <div className="w-20 h-20 bg-white rounded-2xl border border-purple-200 flex items-center justify-center mx-auto shadow-sm group-hover:scale-110 transition-transform">
+                                                                            <Layers size={32} className="text-purple-300" />
+                                                                        </div>
+                                                                        <div className="space-y-2">
+                                                                            <p className="font-bold text-purple-700 text-lg">클러스터 지도 뷰 (Placeholder)</p>
+                                                                            <p className="text-sm text-purple-400">클러스터 영역 내 세부 위치를 클릭해 스팟을 지정하세요.</p>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                {/* Right: Spot List */}
+                                                                <div className="col-span-1 md:col-span-4 border-l border-slate-100 pl-6 space-y-4 overflow-y-auto custom-scrollbar">
+                                                                    <span className="font-bold text-slate-900">세부 스팟 목록</span>
+                                                                    {clusterSpots.map((spot, idx) => (
+                                                                        <div key={spot.id} className="p-4 rounded-xl border-2 border-purple-200 bg-purple-50/50 space-y-3 shadow-sm">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <span className="font-bold text-purple-700 text-sm flex items-center gap-2">
+                                                                                    <div className="w-5 h-5 rounded-full bg-purple-500 text-white flex items-center justify-center text-[10px]">{idx + 1}</div>
+                                                                                    스팟 {idx + 1}
+                                                                                </span>
+                                                                                <button className="text-slate-400 hover:text-red-500 transition-colors"><XCircle size={16} /></button>
+                                                                            </div>
+                                                                            <input type="text" placeholder="스팟 이름" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-purple-400 font-medium" defaultValue={spot.name} />
+                                                                            <input
+                                                                                type="text"
+                                                                                placeholder="지도를 클릭해 좌표를 지정하세요"
+                                                                                className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-purple-400 text-slate-600"
+                                                                                defaultValue={spot.lat ?? ''}
+                                                                            />
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+
+                                                {/* Tab Panel — 이미지 지도 (generic) */}
+                                                {(() => {
+                                                    const activeTab = mapTabs.find(t => t.id === activeMapTab);
+                                                    if (activeTab?.tabType !== 'image_map') return null;
+                                                    const imageSpots = spotsByTab[activeMapTab] ?? [];
+                                                    return (
+                                                        <div className="space-y-6">
+                                                            <div className="flex flex-col space-y-2">
+                                                                <h3 className="text-xl font-bold text-slate-900">내부 이미지 지도 — {activeTab.label}</h3>
+                                                                <p className="text-slate-400 text-base font-normal">플로어플랜 위에 스팟 핀을 지정해 주세요.</p>
+                                                            </div>
+                                                            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 h-[500px]">
+                                                                {/* Left: Floor Plan */}
+                                                                <div className="col-span-1 md:col-span-8 bg-amber-50/30 rounded-2xl border-2 border-dashed border-amber-200 flex items-center justify-center relative overflow-hidden group hover:border-[#FF9B50]/50 transition-colors">
+                                                                    <div className="absolute inset-0 grid grid-cols-8 grid-rows-6 gap-0 opacity-20 pointer-events-none">
+                                                                        {Array.from({ length: 48 }).map((_, i) => (
+                                                                            <div key={i} className="border border-amber-300" />
+                                                                        ))}
+                                                                    </div>
+                                                                    {imageSpots.map((_, i) => {
+                                                                        const positions = [
+                                                                            { top: '30%', left: '40%' },
+                                                                            { top: '55%', left: '60%' },
+                                                                            { top: '70%', left: '25%' },
+                                                                            { top: '45%', left: '70%' },
+                                                                        ];
+                                                                        const pos = positions[i] ?? { top: `${20 + i * 15}%`, left: `${30 + i * 10}%` };
+                                                                        return (
+                                                                            <div
+                                                                                key={i}
+                                                                                className="absolute w-5 h-5 bg-[#FF9B50] rounded-full border-2 border-white shadow-md flex items-center justify-center text-white text-[10px] font-bold"
+                                                                                style={pos}
+                                                                            >
+                                                                                {i + 1}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                    <div className="text-center space-y-2 z-10">
+                                                                        <p className="font-bold text-amber-600 text-sm">플로어플랜 Placeholder</p>
+                                                                        <p className="text-xs text-amber-400">이미지 업로드 후 핀을 배치하세요</p>
+                                                                    </div>
+                                                                </div>
+                                                                {/* Right: Spot List */}
+                                                                <div className="col-span-1 md:col-span-4 border-l border-slate-100 pl-6 space-y-4 overflow-y-auto custom-scrollbar">
+                                                                    <span className="font-bold text-slate-900">내부 스팟 목록</span>
+                                                                    {imageSpots.map((spot, idx) => (
+                                                                        <div key={spot.id} className="p-4 rounded-xl border-2 border-[#FFD1A6] bg-[#FFD1A6]/10 space-y-3 shadow-sm">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <span className="font-bold text-[#D97706] text-sm flex items-center gap-2">
+                                                                                    <div className="w-5 h-5 rounded-full bg-[#FF9B50] text-white flex items-center justify-center text-[10px]">{idx + 1}</div>
+                                                                                    스팟 {idx + 1}
+                                                                                </span>
+                                                                                <button className="text-slate-400 hover:text-red-500 transition-colors"><XCircle size={16} /></button>
+                                                                            </div>
+                                                                            <input type="text" placeholder="스팟 이름" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-[#FF9B50] font-medium" defaultValue={spot.name} />
+                                                                            <input
+                                                                                type="text"
+                                                                                placeholder="지도를 클릭해 좌표를 지정하세요"
+                                                                                className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-[#FF9B50] text-slate-600"
+                                                                                defaultValue={spot.lat ?? ''}
+                                                                            />
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
                                         )}
                                     </div>
                                 </div>
