@@ -131,6 +131,7 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
     const [activeMapTab, setActiveMapTab] = useState<string>('google_map');
 
     // MOCK: Replace with API data from Step 2 when connected
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [imageMaps, setImageMaps] = useState<ImageMapDef[]>(MOCK_IMAGE_MAPS);
 
     // MOCK: Replace initial values with API data when connected
@@ -261,7 +262,7 @@ function ContentRegistrationFormInner({ onList, onRefresh }: ContentRegistration
         if (categoryParam) {
             setFormData(prev => ({ ...prev, category: categoryParam }));
         }
-    }, []); // Only on mount
+    }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // 2. Sync State to URL
     useEffect(() => {
